@@ -23,6 +23,9 @@
    ;; curs_refresh
    refresh wrefresh wnoutrefresh doupdate redrawwin wredrawln
 
+   ;; curs_clear
+   erase werase clear wclear clrtobot wclrtobot clrtoeol wclrtoeol
+
    ;; curs_inopts
    cbreak nocbreak echo noecho halfdelay intrflush keypad meta nodelay raw noraw
 
@@ -128,6 +131,16 @@
    (doupdate () int)
    (redrawwin (window*) int)
    (wredrawln (window* int int) int)
+
+   ;; curs_clear
+   (erase () int)
+   (werase (window*) int)
+   (clear () int)
+   (wclear (window*) int)
+   (clrtobot () int)
+   (wclrtobot (window*) int)
+   (clrtoeol () int)
+   (wclrtoeol (window*) int)
 
    ;; curs_inopts
    (cbreak() int)
