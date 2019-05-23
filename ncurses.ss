@@ -26,6 +26,9 @@
    ;; curs_addstr
    addstr addnstr waddstr waddnstr mvaddstr mvaddnstr mvwaddstr mvwaddnstr
 
+   ;; curs_border
+   border wborder box hline whline vline wvline mvhline mvwhline mvvline mvwvline
+
    ;; curs_inopts
    cbreak nocbreak echo noecho halfdelay intrflush keypad meta nodelay raw noraw
 
@@ -45,7 +48,7 @@
    ;; default_colors
    use-default-colors assume-default-colors)
   (import
-   (except (chezscheme) meta))
+   (except (chezscheme) box meta))
 
   (define library-init
     (load-shared-object "libncursesw.so.6"))
@@ -168,6 +171,19 @@
    (mvaddnstr (int int string int) int)
    (mvwaddstr (window* int int string) int)
    (mvwaddnstr (window* int int string int) int)
+
+   ;; curs_border
+   (border (chtype chtype chtype chtype chtype chtype chtype chtype) int)
+   (wborder (window* chtype chtype chtype chtype chtype chtype chtype chtype) int)
+   (box (window* chtype chtype) int)
+   (hline (chtype int) int)
+   (whline (window* chtype int) int)
+   (vline (chtype int) int)
+   (wvline (window* chtype int) int)
+   (mvhline (int int chtype int) int)
+   (mvwhline (window* int int chtype int) int)
+   (mvvline (int int chtype int) int)
+   (mvwvline (window* int int chtype int) int)
 
    ;; curs_inopts
    (cbreak() int)
