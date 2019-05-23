@@ -29,6 +29,9 @@
    ;; curs_clear
    erase werase clear wclear clrtobot wclrtobot clrtoeol wclrtoeol
 
+   ;; curs_addch
+   addch waddch mvaddch mvwaddch echochar wechochar
+
    ;; curs_addstr
    addstr addnstr waddstr waddnstr mvaddstr mvaddnstr mvwaddstr mvwaddnstr
 
@@ -57,7 +60,8 @@
     (load-shared-object "libncursesw.so.6"))
 
   (define-ftype window* void*)
-  (define-ftype attr_t unsigned)
+  (define-ftype chtype unsigned)
+  (define-ftype attr_t chtype)
 
   (define-syntax c/vars
     (lambda (stx)
@@ -155,6 +159,14 @@
    (wclrtobot (window*) int)
    (clrtoeol () int)
    (wclrtoeol (window*) int)
+
+   ;; curs_addch
+   (addch (chtype) int)
+   (waddch (window* chtype) int)
+   (mvaddch (int int chtype) int)
+   (mvwaddch (window* int int chtype) int)
+   (echochar (chtype) int)
+   (wechochar (window* chtype) int)
 
    ;; curs_addstr
    (addstr (string) int)
