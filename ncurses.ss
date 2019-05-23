@@ -11,6 +11,9 @@
    newscr
    stdscr
 
+   ;; Colour #defines.
+   COLOR_BLACK COLOR_RED COLOR_GREEN COLOR_YELLOW COLOR_BLUE COLOR_MAGENTA COLOR_CYAN COLOR_WHITE
+
    ;; curs_initscr
    initscr endwin
 
@@ -65,6 +68,22 @@
    (curscr	'void*)
    (newscr	'void*)
    (stdscr	'void*))
+
+  (define-syntax enum
+    (syntax-rules ()
+      [(_ (col val) ...)
+       (begin
+         (define col val) ...)]))
+
+  (enum
+   (COLOR_BLACK		0)
+   (COLOR_RED		1)
+   (COLOR_GREEN		2)
+   (COLOR_YELLOW	3)
+   (COLOR_BLUE		4)
+   (COLOR_MAGENTA	5)
+   (COLOR_CYAN		6)
+   (COLOR_WHITE		7))
 
   (define-syntax c_funcs
     (lambda (stx)
