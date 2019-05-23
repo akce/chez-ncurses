@@ -36,6 +36,9 @@
    start-color has-colors can-change_color init-pair init-color color-content pair-content
    init-extended-pair init-extended-color extended-color-content extended-pair-content reset-color-pairs
 
+   ;; curs_attr
+   attr-get wattr-get attr-set wattr-set attr-off wattr-off attr-on wattr-on attroff wattroff attron wattron attrset wattrset chgat wchgat mvchgat mvwchgat color-set wcolor-set standend wstandend standout wstandout
+
    ;; resizeterm
    is-term-resized resize-term resizeterm
 
@@ -51,6 +54,7 @@
     (load-shared-object "libncursesw.so.6"))
 
   (define-ftype window* void*)
+  (define-ftype attr_t unsigned)
 
   (define-syntax c/vars
     (lambda (stx)
@@ -182,6 +186,32 @@
    (extended-color-content (short (* short) (* short) (* short)) int)
    (extended-pair-content (short (* short) (* short)) int)
    (reset-color-pairs () void)
+
+   ;; curs_attr
+   (attr-get ((* attr_t) (* short) void*) int)
+   (wattr-get (window* (* attr_t) (* short) void*) int)
+   (attr-set (attr_t short void*) int)
+   (wattr-set (window* attr_t short void*) int)
+   (attr-off (attr_t void*) int)
+   (wattr-off (window* attr_t void*) int)
+   (attr-on (attr_t void*) int)
+   (wattr-on (window* attr_t void*) int)
+   (attroff (int) int)
+   (wattroff (window* int) int)
+   (attron (int) int)
+   (wattron (window* int) int)
+   (attrset (int) int)
+   (wattrset (window* int) int)
+   (chgat (int attr_t short void*) int)
+   (wchgat (window* int attr_t short void*) int)
+   (mvchgat (int int int attr_t short void*) int)
+   (mvwchgat (window* int int int attr_t short void*) int)
+   (color-set (short void*) int)
+   (wcolor-set (window* short void*) int)
+   (standend () int)
+   (wstandend (window*) int)
+   (standout () int)
+   (wstandout (window*) int)
 
    ;; resizeterm
    (is-term-resized (int int) boolean)
