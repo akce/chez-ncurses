@@ -1,5 +1,8 @@
 (library (ncurses)
   (export
+   ERR
+   OK
+
    ;; curs_variables (expressed as functions).
    COLORS
    COLOR_PAIRS
@@ -68,6 +71,16 @@
          #'(begin
              (c/vars n t) ...)])))
 
+  (define-syntax enum
+    (syntax-rules ()
+      [(_ (col val) ...)
+       (begin
+         (define col val) ...)]))
+
+  (enum
+   (ERR	-1)
+   (OK	0))
+
   (c/vars
    (COLORS	'int)
    (COLOR_PAIRS	'int)
@@ -78,12 +91,6 @@
    (curscr	'void*)
    (newscr	'void*)
    (stdscr	'void*))
-
-  (define-syntax enum
-    (syntax-rules ()
-      [(_ (col val) ...)
-       (begin
-         (define col val) ...)]))
 
   (enum
    (COLOR_BLACK		0)
