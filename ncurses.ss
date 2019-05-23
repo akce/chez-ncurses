@@ -1,18 +1,9 @@
 (library (ncurses)
   (export
-   ERR
-   OK
+   ERR OK
 
    ;; curs_variables (expressed as functions).
-   COLORS
-   COLOR_PAIRS
-   COLS
-   ESCDELAY
-   LINES
-   TABSIZE
-   curscr
-   newscr
-   stdscr
+   COLORS COLOR_PAIRS COLS ESCDELAY LINES TABSIZE curscr newscr stdscr
 
    ;; Colour #defines.
    COLOR_BLACK COLOR_RED COLOR_GREEN COLOR_YELLOW COLOR_BLUE COLOR_MAGENTA COLOR_CYAN COLOR_WHITE
