@@ -3,6 +3,9 @@
    ;; curs_variables (expressed as functions).
    LINES
    COLS
+   curscr
+   newscr
+   stdscr
 
    ;; curs_initscr
    initscr endwin
@@ -36,19 +39,24 @@
 
   (define-ftype window* void*)
 
-  (define lines-addr
-    (foreign-entry "LINES"))
+  (define-syntax c/vars
+    (lambda (stx)
+      (syntax-case stx ()
+        [(_ var type)
+         #`(define var
+             (let ([addr (foreign-entry #,(symbol->string (syntax->datum #'var)))])
+               (lambda ()
+                 (foreign-ref type addr 0))))]
+        [(_ (n t) ...)
+         #'(begin
+             (c/vars n t) ...)])))
 
-  (define LINES
-    (lambda ()
-      (foreign-ref 'int lines-addr 0)))
-
-  (define cols-addr
-    (foreign-entry "COLS"))
-
-  (define COLS
-    (lambda ()
-      (foreign-ref 'int cols-addr 0)))
+  (c/vars
+   (LINES 'int)
+   (COLS 'int)
+   (curscr 'void*)
+   (newscr 'void*)
+   (stdscr 'void*))
 
   (define-syntax c_funcs
     (lambda (stx)
