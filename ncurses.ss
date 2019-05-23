@@ -26,6 +26,9 @@
    ;; curs_clear
    erase werase clear wclear clrtobot wclrtobot clrtoeol wclrtoeol
 
+   ;; curs_addstr
+   addstr addnstr waddstr waddnstr mvaddstr mvaddnstr mvwaddstr mvwaddnstr
+
    ;; curs_inopts
    cbreak nocbreak echo noecho halfdelay intrflush keypad meta nodelay raw noraw
 
@@ -141,6 +144,16 @@
    (wclrtobot (window*) int)
    (clrtoeol () int)
    (wclrtoeol (window*) int)
+
+   ;; curs_addstr
+   (addstr (string) int)
+   (addnstr (string int) int)
+   (waddstr (window* string) int)
+   (waddnstr (window* string int) int)
+   (mvaddstr (int int string) int)
+   (mvaddnstr (int int string int) int)
+   (mvwaddstr (window* int int string) int)
+   (mvwaddnstr (window* int int string int) int)
 
    ;; curs_inopts
    (cbreak() int)
