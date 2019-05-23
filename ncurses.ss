@@ -39,6 +39,9 @@
    ;; curs_attr
    attr-get wattr-get attr-set wattr-set attr-off wattr-off attr-on wattr-on attroff wattroff attron wattron attrset wattrset chgat wchgat mvchgat mvwchgat color-set wcolor-set standend wstandend standout wstandout
 
+   ;; curs_bkgd
+   bkgdset wbkgdset bkgd wbkgd getbkgd
+
    ;; resizeterm
    is-term-resized resize-term resizeterm
 
@@ -238,6 +241,13 @@
    (wstandend (window*) int)
    (standout () int)
    (wstandout (window*) int)
+
+   ;; curs_bkgd
+   (bkgdset (chtype) void)
+   (wbkgdset (window* chtype) void)
+   (bkgd (chtype) int)
+   (wbkgd (window* chtype) int)
+   (getbkgd (window*) chtype)
 
    ;; resizeterm
    (is-term-resized (int int) boolean)
