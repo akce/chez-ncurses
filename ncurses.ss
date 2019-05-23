@@ -64,13 +64,23 @@
   (import
    (except (chezscheme) box meta))
 
-  (define library-init
-    (load-shared-object "libncursesw.so.6"))
-
-  (define-ftype window* void*)
-  (define-ftype chtype unsigned)
-  (define-ftype attr_t chtype)
-  (define-ftype wchar_t unsigned)
+  (define-syntax c_funcs
+    (lambda (stx)
+      (define string-map
+        (lambda (func str)
+          (list->string (map func (string->list str)))))
+      (define symbol->curses-name
+        (lambda (sym)
+          (string-map (lambda (c)
+                        (if (eqv? c #\-)
+                            #\_ c))
+                      (symbol->string sym))))
+      (syntax-case stx ()
+        [(_ (name args return))
+         (quasisyntax
+          (define name
+            (foreign-procedure (unsyntax (symbol->curses-name (syntax->datum #'name))) args return)))]
+        [(_ f ...) (syntax (begin (c_funcs f) ...))])))
 
   (define-syntax c/vars
     (lambda (stx)
@@ -89,6 +99,14 @@
       [(_ (col val) ...)
        (begin
          (define col val) ...)]))
+
+  (define library-init
+    (load-shared-object "libncursesw.so.6"))
+
+  (define-ftype window* void*)
+  (define-ftype chtype unsigned)
+  (define-ftype attr_t chtype)
+  (define-ftype wchar_t unsigned)
 
   (enum
    (ERR	-1)
@@ -217,24 +235,6 @@
    (COLOR_MAGENTA	5)
    (COLOR_CYAN		6)
    (COLOR_WHITE		7))
-
-  (define-syntax c_funcs
-    (lambda (stx)
-      (define string-map
-        (lambda (func str)
-          (list->string (map func (string->list str)))))
-      (define symbol->curses-name
-        (lambda (sym)
-          (string-map (lambda (c)
-                        (if (eqv? c #\-)
-                            #\_ c))
-                      (symbol->string sym))))
-      (syntax-case stx ()
-        [(_ (name args return))
-         (quasisyntax
-          (define name
-            (foreign-procedure (unsyntax (symbol->curses-name (syntax->datum #'name))) args return)))]
-        [(_ f ...) (syntax (begin (c_funcs f) ...))])))
 
   (c_funcs
    ;; curs_initscr
