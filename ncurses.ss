@@ -1,8 +1,12 @@
 (library (ncurses)
   (export
    ;; curs_variables (expressed as functions).
-   LINES
+   COLORS
+   COLOR_PAIRS
    COLS
+   ESCDELAY
+   LINES
+   TABSIZE
    curscr
    newscr
    stdscr
@@ -52,11 +56,15 @@
              (c/vars n t) ...)])))
 
   (c/vars
-   (LINES 'int)
-   (COLS 'int)
-   (curscr 'void*)
-   (newscr 'void*)
-   (stdscr 'void*))
+   (COLORS	'int)
+   (COLOR_PAIRS	'int)
+   (COLS	'int)
+   (ESCDELAY	'int)
+   (LINES	'int)
+   (TABSIZE	'int)
+   (curscr	'void*)
+   (newscr	'void*)
+   (stdscr	'void*))
 
   (define-syntax c_funcs
     (lambda (stx)
