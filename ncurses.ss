@@ -42,6 +42,9 @@
    ;; curs_bkgd
    bkgdset wbkgdset bkgd wbkgd getbkgd
 
+   ;; curs_beep
+   beep flash
+
    ;; resizeterm
    is-term-resized resize-term resizeterm
 
@@ -248,6 +251,10 @@
    (bkgd (chtype) int)
    (wbkgd (window* chtype) int)
    (getbkgd (window*) chtype)
+
+   ;; curs_beep
+   (beep () int)
+   (flash () int)
 
    ;; resizeterm
    (is-term-resized (int int) boolean)
