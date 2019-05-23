@@ -45,6 +45,9 @@
    ;; curs_beep
    beep flash
 
+   ;; curs_termattrs
+   baudrate erasechar erasewchar has_ic has_il killchar killwchar longname term_attrs termattrs termname
+
    ;; resizeterm
    is-term-resized resize-term resizeterm
 
@@ -62,6 +65,7 @@
   (define-ftype window* void*)
   (define-ftype chtype unsigned)
   (define-ftype attr_t chtype)
+  (define-ftype wchar_t unsigned)
 
   (define-syntax c/vars
     (lambda (stx)
@@ -255,6 +259,19 @@
    ;; curs_beep
    (beep () int)
    (flash () int)
+
+   ;; curs_termattrs
+   (baudrate () int)
+   (erasechar () char)
+   (erasewchar ((* wchar_t)) int)
+   (has_ic () boolean)
+   (has_il () boolean)
+   (killchar () char)
+   (killwchar ((* wchar_t)) int)
+   (longname () string)
+   (term_attrs () attr_t)
+   (termattrs () chtype)
+   (termname () string)
 
    ;; resizeterm
    (is-term-resized (int int) boolean)
