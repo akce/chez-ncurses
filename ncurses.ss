@@ -1,5 +1,9 @@
 (library (ncurses)
   (export
+   ;; curs_variables (expressed as functions).
+   LINES
+   COLS
+
    ;; curs_initscr
    initscr endwin
 
@@ -31,6 +35,20 @@
     (load-shared-object "libncursesw.so.6"))
 
   (define-ftype window* void*)
+
+  (define lines-addr
+    (foreign-entry "LINES"))
+
+  (define LINES
+    (lambda ()
+      (foreign-ref 'int lines-addr 0)))
+
+  (define cols-addr
+    (foreign-entry "COLS"))
+
+  (define COLS
+    (lambda ()
+      (foreign-ref 'int cols-addr 0)))
 
   (define-syntax c_funcs
     (lambda (stx)
