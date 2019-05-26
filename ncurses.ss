@@ -34,6 +34,9 @@
    ;; curs_border
    border wborder box hline whline vline wvline mvhline mvwhline mvvline mvwvline
 
+   ;; curs_getch
+   getch wgetch mvgetch mvwgetch ungetch has_key
+
    ;; curs_inopts
    cbreak nocbreak echo noecho halfdelay intrflush keypad meta nodelay raw noraw
 
@@ -302,6 +305,14 @@
    (mvwhline (window* int int chtype int) int)
    (mvvline (int int chtype int) int)
    (mvwvline (window* int int chtype int) int)
+
+   ;; curs_getch
+   (getch () int)
+   (wgetch (window*) int)
+   (mvgetch (int int) int)
+   (mvwgetch (window* int int) int)
+   (ungetch (int) int)
+   (has_key (int) boolean)
 
    ;; curs_inopts
    (cbreak() int)
