@@ -1,3 +1,5 @@
+;; chez scheme bindings for ncurses.
+;; Copyright (c) 2019 Akce. Released under the MIT license.
 (library (ncurses)
   (export
    ERR OK
