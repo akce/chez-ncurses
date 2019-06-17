@@ -92,8 +92,8 @@
       (syntax-case stx ()
         [(_ var type)
          #`(define var
-             ((lambda ()
-                (foreign-ref type (foreign-entry #,(symbol->string (syntax->datum #'var))) 0))))]
+             (lambda ()
+               (foreign-ref type (foreign-entry #,(symbol->string (syntax->datum #'var))) 0)))]
         [(_ (n t) ...)
          #'(begin
              (c/vars n t) ...)])))
