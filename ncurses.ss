@@ -9,7 +9,7 @@
    KEY_MAX
    KEY_F
 
-   ;; curs_variables (expressed as functions).
+   ;; curs_variables (most are volatile so expressed as functions).
    COLORS COLOR_PAIRS COLS ESCDELAY LINES TABSIZE curscr newscr stdscr
 
    ;; Colour #defines.
@@ -35,6 +35,9 @@
 
    ;; curs_border
    border wborder box hline whline vline wvline mvhline mvwhline mvvline mvwvline
+
+   ;; curs_getyx, ncurses implements via macros but we can recreate via curs_legacy.
+   getyx getparyx getbegyx getmaxyx
 
    ;; curs_getch
    getch wgetch mvgetch mvwgetch ungetch has_key
@@ -65,7 +68,10 @@
    def-prog-mode def-shell-mode reset-prog-mode reset-shell-mode resetty savetty ripoffline curs-set napms
 
    ;; default_colors
-   use-default-colors assume-default-colors)
+   use-default-colors assume-default-colors
+
+   ;; curs_legacy, these require the NCURSES_OPAQUE definition.
+   getattrs getbegx getbegy getcurx getcury getmaxx getmaxy getparx getpary)
   (import
    (except (chezscheme) box meta))
 
@@ -414,4 +420,32 @@
 
    ;; default_colors
    (use-default-colors () int)
-   (assume-default-colors (int int) int)))
+   (assume-default-colors (int int) int)
+
+   ;; curs_legacy
+   (getattrs (window*) int)
+   (getbegx (window*) int)
+   (getbegy (window*) int)
+   (getcurx (window*) int)
+   (getcury (window*) int)
+   (getmaxx (window*) int)
+   (getmaxy (window*) int)
+   (getparx (window*) int)
+   (getpary (window*) int))
+
+  ;; curs_getyx, ncurses implements via macros but we can recreate via curs_legacy.
+  (define getyx
+    (lambda (w)
+      (values (getcury w) getcurx w)))
+
+  (define getparyx
+    (lambda (w)
+      (values (getpary w) (getparx w))))
+
+  (define getbegyx
+    (lambda (w)
+      (values (getbegy w) (getbegx w))))
+
+  (define getmaxyx
+    (lambda (w)
+      (values (getmaxy w) (getmaxx w)))))
