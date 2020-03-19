@@ -102,7 +102,7 @@
         [(_ var type)
          #`(define-syntax var
              (identifier-syntax
-               (foreign-ref type (foreign-entry #,(symbol->string (syntax->datum #'var))) 0)))]
+               (foreign-ref 'type (foreign-entry #,(symbol->string (syntax->datum #'var))) 0)))]
         [(_ (n t) ...)
          #'(begin
              (c/vars n t) ...)])))
@@ -229,15 +229,15 @@
       (+ KEY_F0 n)))
 
   (c/vars
-   (COLORS	'int)
-   (COLOR_PAIRS	'int)
-   (COLS	'int)
-   (ESCDELAY	'int)
-   (LINES	'int)
-   (TABSIZE	'int)
-   (curscr	'void*)
-   (newscr	'void*)
-   (stdscr	'void*))
+   (COLORS	int)
+   (COLOR_PAIRS	int)
+   (COLS	int)
+   (ESCDELAY	int)
+   (LINES	int)
+   (TABSIZE	int)
+   (curscr	void*)
+   (newscr	void*)
+   (stdscr	void*))
 
   (enum
    (COLOR_BLACK		0)
