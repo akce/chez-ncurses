@@ -9,7 +9,7 @@
    KEY_MAX
    KEY_F
 
-   ;; curs_variables (most are volatile so expressed as functions).
+   ;; curs_variables.
    COLORS COLOR_PAIRS COLS ESCDELAY LINES TABSIZE curscr newscr stdscr
 
    ;; Colour #defines.
@@ -97,8 +97,8 @@
     (lambda (stx)
       (syntax-case stx ()
         [(_ var type)
-         #`(define var
-             (lambda ()
+         #`(define-syntax var
+             (identifier-syntax
                (foreign-ref type (foreign-entry #,(symbol->string (syntax->datum #'var))) 0)))]
         [(_ (n t) ...)
          #'(begin
