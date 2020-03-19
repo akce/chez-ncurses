@@ -70,6 +70,9 @@
    ;; default_colors
    use-default-colors assume-default-colors
 
+   ;; curs_terminfo
+   tigetnum
+
    ;; curs_legacy, these require the NCURSES_OPAQUE definition.
    getattrs getbegx getbegy getcurx getcury getmaxx getmaxy getparx getpary)
   (import
@@ -421,6 +424,9 @@
    ;; default_colors
    (use-default-colors () int)
    (assume-default-colors (int int) int)
+
+   ;; curs_terminfo
+   (tigetnum (string) int)
 
    ;; curs_legacy
    (getattrs (window*) int)
