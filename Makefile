@@ -4,7 +4,7 @@
 
 # Install destination directory. This should be an object directory contained in (library-directories).
 # eg, set in CHEZSCHEMELIBDIRS environment variable.
-DEST = ~/lib
+LIBDIR = ~/lib
 
 # Path to chez scheme executable.
 SCHEME = /usr/bin/scheme
@@ -30,7 +30,7 @@ all: $(SOBJS)
 	echo '(reset-handler abort) (compile-library "'$<'")' | $(SCHEME) $(SFLAGS)
 
 install: all
-	$(INSTALL) -D -t $(DEST) $(SOBJS)
+	$(INSTALL) -D -t $(LIBDIR) $(SOBJS)
 
 clean:
 	rm -f $(SOBJS)
