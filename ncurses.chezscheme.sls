@@ -30,6 +30,11 @@
 
    ;; curs_addch
    addch waddch mvaddch mvwaddch echochar wechochar
+   ACS_ULCORNER ACS_LLCORNER ACS_URCORNER ACS_LRCORNER
+   ACS_LTEE ACS_RTEE ACS_BTEE ACS_TTEE ACS_HLINE ACS_VLINE ACS_PLUS
+   ACS_S1 ACS_S9 ACS_DIAMOND ACS_CKBOARD ACS_DEGREE ACS_PLMINUS ACS_BULLET
+   ACS_LARROW ACS_RARROW ACS_DARROW ACS_UARROW ACS_BOARD ACS_LANTERN
+   ACS_BLOCK ACS_S3 ACS_S7 ACS_LEQUAL ACS_GEQUAL ACS_PI ACS_NEQUAL ACS_STERLING
 
    ;; curs_addstr
    addstr addnstr waddstr waddnstr mvaddstr mvaddnstr mvwaddstr mvwaddnstr
@@ -121,6 +126,57 @@
   (define-ftype chtype unsigned)
   (define-ftype attr_t chtype)
   (define-ftype wchar_t unsigned)
+
+  (define acs-map
+    (foreign-entry "acs_map"))
+
+  (define-syntax acs/vars
+    (lambda (stx)
+      (define (offset ch)
+        (* (foreign-sizeof 'unsigned) (char->integer ch)))
+      (syntax-case stx ()
+        [(_ var offset-char)
+         #`(define-syntax var
+             (identifier-syntax
+               (foreign-ref 'unsigned (foreign-entry "acs_map") #,(offset (syntax->datum #'offset-char)))))]
+        [(_ (n o) ...)
+         #'(begin
+             (acs/vars n o) ...)])))
+
+  (acs/vars
+    (ACS_ULCORNER	#\l)
+    (ACS_LLCORNER	#\m)
+    (ACS_URCORNER	#\k)
+    (ACS_LRCORNER	#\j)
+    (ACS_LTEE		#\t)
+    (ACS_RTEE		#\u)
+    (ACS_BTEE		#\v)
+    (ACS_TTEE		#\w)
+    (ACS_HLINE		#\q)
+    (ACS_VLINE		#\x)
+    (ACS_PLUS		#\n)
+    (ACS_S1		#\o)
+    (ACS_S9		#\s)
+    (ACS_DIAMOND	#\`)
+    (ACS_CKBOARD	#\a)
+    (ACS_DEGREE		#\f)
+    (ACS_PLMINUS	#\g)
+    (ACS_BULLET		#\~)
+    (ACS_LARROW		#\,)
+    (ACS_RARROW		#\+)
+    (ACS_DARROW		#\.)
+    (ACS_UARROW		#\-)
+    (ACS_BOARD		#\h)
+    (ACS_LANTERN	#\i)
+    (ACS_BLOCK		#\0)
+    (ACS_S3		#\p)
+    (ACS_S7		#\r)
+    (ACS_LEQUAL		#\y)
+    (ACS_GEQUAL		#\z)
+    (ACS_PI		#\{)
+    (ACS_NEQUAL		#\|)
+    (ACS_STERLING	#\})
+    )
 
   (enum
    (ERR	-1)
