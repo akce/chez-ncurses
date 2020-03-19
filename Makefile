@@ -20,26 +20,16 @@ LIBFLAGS = -shared
 
 ## Should be no need to edit anything below here.
 
-COBJS =
-
 # SOBJS need to be in order of dependencies first, library last so that they can be joined for the distribution file.
-SOBJS = ncurses.so
+SOBJS = ncurses.chezscheme.so
 
-BINS = ncurses.chezscheme.so
+all: $(SOBJS)
 
-all: $(BINS)
-
-ncurses.chezscheme.so: $(SOBJS)
-	cat $^ > $@
-
-%.o: %.c
-	$(CC) $(CFLAGS) $< -o $@
-
-%.so: %.ss
+%.so: %.sls
 	echo '(reset-handler abort) (compile-library "'$<'")' | $(SCHEME) $(SFLAGS)
 
 install: all
-	$(INSTALL) -D -t $(DEST) $(BINS)
+	$(INSTALL) -D -t $(DEST) $(SOBJS)
 
 clean:
-	rm -f $(COBJS) $(SOBJS) $(BINS)
+	rm -f $(SOBJS)
