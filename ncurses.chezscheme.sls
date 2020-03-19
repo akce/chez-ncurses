@@ -1,5 +1,6 @@
 ;; chez scheme bindings for ncurses.
-;; Copyright (c) 2019 Akce. Released under the MIT license.
+;; Written by Akce 2019-2020.
+;; SPDX-License-Identifier: Unlicense
 (library (ncurses)
   (export
    ERR OK

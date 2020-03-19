@@ -1,5 +1,6 @@
 # chez-ncurses Makefile.
-# Placed in the public domain.
+# Written by Akce 2019-2020.
+# SPDX-License-Identifier: Unlicense
 
 # Install destination directory. This should be an object directory contained in (library-directories).
 # eg, set in CHEZSCHEMELIBDIRS environment variable.
