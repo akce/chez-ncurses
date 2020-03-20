@@ -82,7 +82,13 @@
    tigetnum
 
    ;; curs_legacy, these require the NCURSES_OPAQUE definition.
-   getattrs getbegx getbegy getcurx getcury getmaxx getmaxy getparx getpary)
+   getattrs getbegx getbegy getcurx getcury getmaxx getmaxy getparx getpary
+
+   ;; HACK: setlocale here is linux specific ATM.
+   setlocale
+   LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES LC_ALL
+   LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT LC_IDENTIFICATION
+   )
   (import
    (except (chezscheme) box meta))
 
@@ -558,4 +564,24 @@
   (define wattr-on
     (lambda (win attr)
       (wattr_on win attr 0)))
+
+   ;; HACK: setlocale here is linux specific ATM.
+  (c_funcs
+    ;; char *setlocale(int category, const char *locale);
+    (setlocale (int string) string))
+
+  (enum
+    (LC_CTYPE		 0)
+    (LC_NUMERIC		 1)
+    (LC_TIME		 2)
+    (LC_COLLATE		 3)
+    (LC_MONETARY	 4)
+    (LC_MESSAGES	 5)
+    (LC_ALL		 6)
+    (LC_PAPER		 7)
+    (LC_NAME		 8)
+    (LC_ADDRESS		 9)
+    (LC_TELEPHONE	10)
+    (LC_MEASUREMENT	11)
+    (LC_IDENTIFICATION	12))
   )

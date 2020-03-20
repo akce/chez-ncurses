@@ -21,6 +21,7 @@
   (lambda ()
     (mvaddstr 1 1 (format "window (cols x lines): ~d x ~d" COLS LINES))))
 
+(setlocale LC_ALL "")
 ;; Initialise ncurses.
 (define win (initscr))
 (assert (equal? win stdscr))
