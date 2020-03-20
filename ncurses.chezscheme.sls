@@ -511,4 +511,5 @@
 
   (define getmaxyx
     (lambda (w)
-      (values (getmaxy w) (getmaxx w)))))
+      (values (getmaxy w) (getmaxx w))))
+  )
