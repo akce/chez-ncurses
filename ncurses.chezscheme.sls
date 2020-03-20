@@ -57,6 +57,8 @@
 
    ;; curs_attr
    attr-get wattr-get attr-set wattr-set attr-off wattr-off attr-on wattr-on attroff wattroff attron wattron attrset wattrset chgat wchgat mvchgat mvwchgat color-set wcolor-set standend wstandend standout wstandout
+   A_NORMAL A_STANDOUT A_UNDERLINE A_REVERSE A_BLINK A_DIM A_BOLD A_ALTCHARSET
+   A_INVIS A_PROTECT A_HORIZONTAL A_LEFT A_LOW A_RIGHT A_TOP A_VERTICAL A_ITALIC
 
    ;; curs_bkgd
    bkgdset wbkgdset bkgd wbkgd getbkgd
@@ -305,6 +307,31 @@
    (COLOR_MAGENTA	5)
    (COLOR_CYAN		6)
    (COLOR_WHITE		7))
+
+  ;; curs_attr IDs.
+  (define attr-bits
+    (lambda (shift)
+      (bitwise-arithmetic-shift-left 1 (+ 8 shift))))
+
+  ;; TODO add the rest. Only the basic ones are here ATM.
+  (enum
+    (A_NORMAL		0)
+    (A_STANDOUT		(attr-bits 8))
+    (A_UNDERLINE	(attr-bits 9))
+    (A_REVERSE		(attr-bits 10))
+    (A_BLINK		(attr-bits 11))
+    (A_DIM		(attr-bits 12))
+    (A_BOLD		(attr-bits 13))
+    (A_ALTCHARSET	(attr-bits 14))
+    (A_INVIS		(attr-bits 15))
+    (A_PROTECT		(attr-bits 16))
+    (A_HORIZONTAL	(attr-bits 17))
+    (A_LEFT		(attr-bits 18))
+    (A_LOW		(attr-bits 19))
+    (A_RIGHT		(attr-bits 20))
+    (A_TOP		(attr-bits 21))
+    (A_VERTICAL		(attr-bits 22))
+    (A_ITALIC		(attr-bits 23)))
 
   (c_funcs
    ;; curs_initscr
