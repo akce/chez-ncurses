@@ -441,10 +441,10 @@
    (wattr-get (window* (* attr_t) (* short) void*) int)
    (attr-set (attr_t short void*) int)
    (wattr-set (window* attr_t short void*) int)
-   (attr-off (attr_t void*) int)
-   (wattr-off (window* attr_t void*) int)
-   (attr-on (attr_t void*) int)
-   (wattr-on (window* attr_t void*) int)
+   (attr_off (attr_t void*) int)
+   (wattr_off (window* attr_t void*) int)
+   (attr_on (attr_t void*) int)
+   (wattr_on (window* attr_t void*) int)
    (attroff (int) int)
    (wattroff (window* int) int)
    (attron (int) int)
@@ -539,4 +539,23 @@
   (define getmaxyx
     (lambda (w)
       (values (getmaxy w) (getmaxx w))))
+
+  ;;;;;
+  ;; None of the pure attribute functions use the opt argument.
+  ;; See curs_attr(3X) for more detail.
+  (define attr-off
+    (lambda (attr)
+      (attr_off attr 0)))
+
+  (define wattr-off
+    (lambda (win attr)
+      (wattr_off win attr 0)))
+
+  (define attr-on
+    (lambda (attr)
+      (attr_on attr 0)))
+
+  (define wattr-on
+    (lambda (win attr)
+      (wattr_on win attr 0)))
   )
