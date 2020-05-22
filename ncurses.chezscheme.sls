@@ -135,9 +135,6 @@
   (define-ftype attr_t chtype)
   (define-ftype wchar_t unsigned)
 
-  (define acs-map
-    (foreign-entry "acs_map"))
-
   (define-syntax acs/vars
     (lambda (stx)
       (define (offset ch)
