@@ -315,9 +315,12 @@
    (COLOR_WHITE		7))
 
   ;; curs_attr IDs.
-  (define attr-bits
-    (lambda (shift)
-      (bitwise-arithmetic-shift-left 1 (+ 8 shift))))
+  (define-syntax attr-bits
+    (lambda (x)
+      (syntax-case x ()
+        [(_ bitnum)
+         (with-syntax ([b (bitwise-arithmetic-shift-left 1 (+ 8 (syntax->datum #'bitnum)))])
+           #'b)])))
 
   ;; TODO add the rest. Only the basic ones are here ATM.
   (enum
