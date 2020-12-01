@@ -10,7 +10,7 @@ To compile and install the library shared-object to LIBDIR:
 
     $ make install
 
-Override LIBDIR to change install location (default is ~/lib). eg,
+Override LIBDIR to change install location (default is ~/lib/csv<CHEZ-SCHEME-VERSION>). eg,
 
     $ make LIBDIR=/some/other/libdir install
 

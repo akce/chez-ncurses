@@ -4,7 +4,7 @@
 
 # Install destination directory. This should be an object directory contained in (library-directories).
 # eg, set in CHEZSCHEMELIBDIRS environment variable.
-LIBDIR = ~/lib
+LIBDIR = ~/lib/csv$(shell $(SCHEME) --version 2>&1)
 
 # Path to chez scheme executable.
 SCHEME = /usr/bin/scheme
