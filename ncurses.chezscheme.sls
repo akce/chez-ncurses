@@ -52,7 +52,7 @@
    cbreak nocbreak echo noecho halfdelay intrflush keypad meta nodelay raw noraw
 
    ;; curs_color(3X)
-   start-color has-colors can-change_color init-pair init-color color-content pair-content
+   start-color has-colors can-change-color init-pair init-color color-content pair-content
    init-extended-pair init-extended-color extended-color-content extended-pair-content reset-color-pairs
 
    ;; curs_attr(3X)
@@ -431,7 +431,7 @@
    ;; curs_color
    (start-color () int)
    (has-colors () boolean)
-   (can-change_color () boolean)
+   (can-change-color () boolean)
    (init-pair (short short short) int)
    (init-color (short short short short) int)
    (color-content (short (* short) (* short) (* short)) int)
