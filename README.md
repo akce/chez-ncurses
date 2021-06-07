@@ -14,8 +14,6 @@ Override LIBDIR to change install location (default is ~/lib/csv<CHEZ-SCHEME-VER
 
     $ make LIBDIR=/some/other/libdir install
 
-Note that LIBDIR must be in (library-directories). One way to add is by setting CHEZSCHEMELIBDIRS.
-
 ## How To Use
 
 ```scheme
@@ -24,6 +22,8 @@ Note that LIBDIR must be in (library-directories). One way to add is by setting 
 The bindings are very thin wrappers around the [ncurses] C interface. The main difference is that functions (*only!*) are converted to lisp-case/kebab-case.
 
 eg, start_color() -> (start-color)
+
+Ncurses constants retain their CAPITALISED_UNDERSCORE format because I find it easier to keep the SHIFT key held down while typing these in.
 
 It should be possible to learn how to use these bindings via the ncurses man pages.
 
