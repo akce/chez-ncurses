@@ -1,5 +1,5 @@
 ;; chez scheme bindings for ncurses.
-;; Written by Akce 2019-2020.
+;; Written by Jerry 2019-2021.
 ;; SPDX-License-Identifier: Unlicense
 (library (ncurses)
   (export
@@ -10,25 +10,25 @@
    KEY_MAX
    KEY_F
 
-   ;; curs_variables.
+   ;; curs_variables(3X).
    COLORS COLOR_PAIRS COLS ESCDELAY LINES TABSIZE curscr newscr stdscr
 
    ;; Colour #defines.
    COLOR_BLACK COLOR_RED COLOR_GREEN COLOR_YELLOW COLOR_BLUE COLOR_MAGENTA COLOR_CYAN COLOR_WHITE
 
-   ;; curs_initscr
+   ;; curs_initscr(3X)
    initscr endwin
 
-   ;; curs_window
+   ;; curs_window(3X)
    newwin delwin mvwin subwin derwin mvderwin dupwin wsyncup syncok wcursyncup wsyncdown
 
-   ;; curs_refresh
+   ;; curs_refresh(3X)
    refresh wrefresh wnoutrefresh doupdate redrawwin wredrawln
 
-   ;; curs_clear
+   ;; curs_clear(3X)
    erase werase clear wclear clrtobot wclrtobot clrtoeol wclrtoeol
 
-   ;; curs_addch
+   ;; curs_addch(3X)
    addch waddch mvaddch mvwaddch echochar wechochar
    ACS_ULCORNER ACS_LLCORNER ACS_URCORNER ACS_LRCORNER
    ACS_LTEE ACS_RTEE ACS_BTEE ACS_TTEE ACS_HLINE ACS_VLINE ACS_PLUS
@@ -36,55 +36,55 @@
    ACS_LARROW ACS_RARROW ACS_DARROW ACS_UARROW ACS_BOARD ACS_LANTERN
    ACS_BLOCK ACS_S3 ACS_S7 ACS_LEQUAL ACS_GEQUAL ACS_PI ACS_NEQUAL ACS_STERLING
 
-   ;; curs_addstr
+   ;; curs_addstr(3X)
    addstr addnstr waddstr waddnstr mvaddstr mvaddnstr mvwaddstr mvwaddnstr
 
-   ;; curs_border
+   ;; curs_border(3X)
    border wborder box hline whline vline wvline mvhline mvwhline mvvline mvwvline
 
-   ;; curs_getyx, ncurses implements via macros but we can recreate via curs_legacy.
+   ;; curs_getyx(3X), ncurses implements via macros but we can recreate via curs_legacy(3X).
    getyx getparyx getbegyx getmaxyx
 
-   ;; curs_getch
+   ;; curs_getch(3X)
    getch wgetch mvgetch mvwgetch ungetch has_key
 
-   ;; curs_inopts
+   ;; curs_inopts(3X)
    cbreak nocbreak echo noecho halfdelay intrflush keypad meta nodelay raw noraw
 
-   ;; curs_color
+   ;; curs_color(3X)
    start-color has-colors can-change_color init-pair init-color color-content pair-content
    init-extended-pair init-extended-color extended-color-content extended-pair-content reset-color-pairs
 
-   ;; curs_attr
+   ;; curs_attr(3X)
    attr-get wattr-get attr-set wattr-set attr-off wattr-off attr-on wattr-on attroff wattroff attron wattron attrset wattrset chgat wchgat mvchgat mvwchgat color-set wcolor-set standend wstandend standout wstandout
    A_NORMAL A_STANDOUT A_UNDERLINE A_REVERSE A_BLINK A_DIM A_BOLD A_ALTCHARSET
    A_INVIS A_PROTECT A_HORIZONTAL A_LEFT A_LOW A_RIGHT A_TOP A_VERTICAL A_ITALIC
 
-   ;; curs_bkgd
+   ;; curs_bkgd(3X)
    bkgdset wbkgdset bkgd wbkgd getbkgd
 
-   ;; curs_beep
+   ;; curs_beep(3X)
    beep flash
 
-   ;; curs_termattrs
+   ;; curs_termattrs(3X)
    baudrate erasechar erasewchar has_ic has_il killchar killwchar longname term_attrs termattrs termname
 
-   ;; resizeterm
+   ;; resizeterm(3X)
    is-term-resized resize-term resizeterm
 
-   ;; curs_kernel
+   ;; curs_kernel(3X)
    def-prog-mode def-shell-mode reset-prog-mode reset-shell-mode resetty savetty ripoffline curs-set napms
 
-   ;; default_colors
+   ;; default_colors(3X)
    use-default-colors assume-default-colors
 
-   ;; curs_terminfo
+   ;; curs_terminfo(3X)
    tigetnum
 
-   ;; curs_legacy, these require the NCURSES_OPAQUE definition.
+   ;; curs_legacy(3X), these require the NCURSES_OPAQUE definition.
    getattrs getbegx getbegy getcurx getcury getmaxx getmaxy getparx getpary
 
-   ;; HACK: setlocale here is linux specific ATM.
+   ;; HACK: setlocale(3) here is linux specific.
    setlocale
    LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES LC_ALL
    LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT LC_IDENTIFICATION
@@ -312,6 +312,7 @@
    (COLOR_WHITE		7))
 
   ;; curs_attr IDs.
+  ;; attr-bits is written using syntax-case/with-syntax so that the bitmask is calculated at compile time.
   (define-syntax attr-bits
     (lambda (x)
       (syntax-case x ()
@@ -565,7 +566,7 @@
     (lambda (win attr)
       (wattr_on win attr 0)))
 
-   ;; HACK: setlocale here is linux specific ATM.
+   ;; HACK: setlocale here is linux specific.
   (c_funcs
     ;; char *setlocale(int category, const char *locale);
     (setlocale (int string) string))
