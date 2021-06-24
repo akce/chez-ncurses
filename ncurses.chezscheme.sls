@@ -94,6 +94,12 @@
 
   (define-syntax c_funcs
     (lambda (stx)
+      (define has-chtype?
+        (lambda (args)
+          (find
+            (lambda (x)
+              (eq? 'chtype x))
+            (syntax->datum args))))
       (define string-map
         (lambda (func str)
           (list->string (map func (string->list str)))))
@@ -104,11 +110,38 @@
                             #\_ c))
                       (symbol->string sym))))
       (syntax-case stx ()
+        [(k (name (types ...) return))
+         (has-chtype? #'(types ...))
+         ;; For ncurses functions with a chtype argument, generate a calling function
+         ;; that allows for those args to take either an int (as ncurses expects), or
+         ;; a scheme char object.
+         ;; The interface still needs to accept INTs because not all ncurses ints can
+         ;; be converted to a unicode char. eg, the ACS_* chars.
+         (with-syntax ([func-string (symbol->curses-name (syntax->datum #'name))]
+                       [((arg arg->int) ...)
+                        (map
+                          (lambda (t a)
+                            (list
+                              a
+                              (if (eq? 'chtype t)
+                                  ;; 'a' is already a syntax object, so it needs to be
+                                  ;; inserted into the return code syntax object as is.
+                                  #`(if (char? #,a)
+                                        (char->integer #,a)
+                                        #,a)
+                                  a)))
+                          (syntax->datum #'(types ...))
+                          (generate-temporaries #'(types ...)))])
+           #'(define name
+               (let ([f (foreign-procedure func-string (types ...) return)])
+                 (lambda (arg ...)
+                   (f arg->int ...)))))]
         [(_ (name args return))
-         (quasisyntax
-          (define name
-            (foreign-procedure (unsyntax (symbol->curses-name (syntax->datum #'name))) args return)))]
-        [(_ f ...) (syntax (begin (c_funcs f) ...))])))
+         #`(define name
+             (foreign-procedure #,(symbol->curses-name (syntax->datum #'name)) args return))]
+        [(_ f ...)
+         #`(begin
+             (c_funcs f) ...)])))
 
   (define-syntax c/vars
     (lambda (stx)
