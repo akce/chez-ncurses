@@ -28,6 +28,9 @@
    ;; curs_clear(3X)
    erase werase clear wclear clrtobot wclrtobot clrtoeol wclrtoeol
 
+   ;; curs_move(3X)
+   move wmove
+
    ;; curs_addch(3X)
    addch waddch mvaddch mvwaddch echochar wechochar
    ACS_ULCORNER ACS_LLCORNER ACS_URCORNER ACS_LRCORNER
@@ -408,6 +411,10 @@
    (wclrtobot (window*) int)
    (clrtoeol () int)
    (wclrtoeol (window*) int)
+
+   ;; curs_move(3X)
+   (move (int int) int)
+   (wmove (window* int int) int)
 
    ;; curs_addch
    (addch (chtype) int)
