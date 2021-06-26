@@ -48,8 +48,17 @@
    ;; curs_getyx(3X), ncurses implements via macros but we can recreate via curs_legacy(3X).
    getyx getparyx getbegyx getmaxyx
 
-   ;; curs_getch(3X)
-   getch wgetch mvgetch mvwgetch ungetch has_key
+   ;; curs_getch(3X) and curs_get_wch(3X)
+   ;; Always export the wide versions as R6RS requires unicode.
+   ;; This may be a bad idea. Revisit at some point..
+   (rename
+     (get-wch getch)
+     (wget-wch wgetch)
+     (mvget-wch mvgetch)
+     (mvwget-wch mvwgetch)
+     (unget-wch ungetch))
+   has_key
+   ;;get-wch wget-wch mvget-wch mvwget-wch unget-wch
 
    ;; curs_inopts(3X)
    cbreak nocbreak echo noecho halfdelay intrflush keypad meta nodelay raw noraw
@@ -93,7 +102,28 @@
    LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT LC_IDENTIFICATION
    )
   (import
-   (except (chezscheme) box meta))
+   (rename (except (chezscheme) box) (meta %meta)))
+
+  (define-syntax auto-ptr
+    (syntax-rules ()
+      [(_ ((var type) ...) body body* ...)
+       (let ([var (make-ftype-pointer type (foreign-alloc (ftype-sizeof type)))] ...)
+         (dynamic-wind
+           (lambda () #f)
+           (lambda () body body* ...)
+           (lambda ()
+             (foreign-free (ftype-pointer-address var)) ...)))]))
+
+  (%meta define string-map
+    (lambda (func str)
+      (list->string (map func (string->list str)))))
+
+  (%meta define symbol->curses-name
+    (lambda (sym)
+      (string-map (lambda (c)
+                    (if (eqv? c #\-)
+                        #\_ c))
+                  (symbol->string sym))))
 
   (define-syntax c_funcs
     (lambda (stx)
@@ -103,15 +133,6 @@
             (lambda (x)
               (eq? 'chtype x))
             (syntax->datum args))))
-      (define string-map
-        (lambda (func str)
-          (list->string (map func (string->list str)))))
-      (define symbol->curses-name
-        (lambda (sym)
-          (string-map (lambda (c)
-                        (if (eqv? c #\-)
-                            #\_ c))
-                      (symbol->string sym))))
       (syntax-case stx ()
         [(k (name (types ...) return))
          (has-chtype? #'(types ...))
@@ -169,7 +190,10 @@
   (define-ftype window* void*)
   (define-ftype chtype unsigned)
   (define-ftype attr_t chtype)
+  ;; Redefine the Chez wchar_t type as it requires a real char, whereas our KEY_ defs
+  ;; are INTs which causes problems as currently written. eg, (ungetch KEY_RESIZE).
   (define-ftype wchar_t unsigned)
+  (define-ftype wint_t unsigned)
 
   (define-syntax acs/vars
     (lambda (stx)
@@ -455,6 +479,13 @@
    (ungetch (int) int)
    (has_key (int) boolean)
 
+   ;; curs_get_wch(3X)
+   (get_wch ((* wint_t)) int)
+   (wget_wch (window* (* wint_t)) int)
+   (mvget_wch (int int (* wint_t)) int)
+   (mvwget_wch (window* int int (* wint_t)) int)
+   (unget-wch (wchar_t) int)
+
    ;; curs_inopts
    (cbreak() int)
    (nocbreak() int)
@@ -569,6 +600,28 @@
    (getmaxy (window*) int)
    (getparx (window*) int)
    (getpary (window*) int))
+
+  (define-syntax define-wch-func
+    (lambda (x)
+      (syntax-case x ()
+        [(k name args ...)
+         (with-syntax ([curs-name (datum->syntax #'k
+                                    (string->symbol
+                                      (symbol->curses-name (syntax->datum #'name))))])
+           #'(define name
+               (lambda (args ...)
+                 (auto-ptr ([mem wint_t])
+                   (let ([rc (curs-name args ... mem)])
+                     (cond
+                       ;; rc will be OK on regular char or KEY_CODE_YES for a function key.
+                       [(fx=? rc ERR)
+                        (error 'name "error" rc)]
+                       [else
+                         (ftype-ref wint_t () mem)]))))))])))
+  (define-wch-func get-wch)
+  (define-wch-func wget-wch win)
+  (define-wch-func mvget-wch y x)
+  (define-wch-func mvwget-wch win y x)
 
   ;; curs_getyx, ncurses implements via macros but we can recreate via curs_legacy.
   (define getyx
