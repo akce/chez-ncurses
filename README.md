@@ -10,9 +10,11 @@ To compile and install the library shared-object to LIBDIR:
 
     $ make install
 
-Override LIBDIR to change install location (default is ~/lib/csv<CHEZ-SCHEME-VERSION>). eg,
+Override LIBDIR to change install location (default is ~/lib/csv&lt;CHEZ-SCHEME-VERSION&gt;). eg,
 
     $ make LIBDIR=/some/other/libdir install
+
+Note that LIBDIR must be in (library-directories). One way to add is by setting CHEZSCHEMELIBDIRS.
 
 ## How To Use
 
