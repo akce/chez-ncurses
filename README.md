@@ -79,12 +79,15 @@ Ideally, this belongs in a separate POSIX style library.
 ## Links
 
 [Chez Scheme](https://cisco.github.io/ChezScheme/)
+
 [Chez Scheme]: https://cisco.github.io/ChezScheme/ "Chez Scheme"
 
 [ncurses](https://invisible-island.net/ncurses/)
+
 [ncurses]: https://invisible-island.net/ncurses/ "ncurses"
 
 [R6RS](http://r6rs.org/)
+
 [R6RS]: http://r6rs.org "R6RS"
 
 ## License
