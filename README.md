@@ -83,7 +83,7 @@ Ideally, this belongs in a separate POSIX style library.
 ## TODO
 
 - [x] Add support for the mouse. ie, things in [curs_mouse(3)](https://invisible-island.net/ncurses/man/curs_mouse.3x.html)
-- [ ] Document and add an example that uses ALT keystrokes
+- [x] ~~Document and add an~~ example that uses ALT keystrokes
 - [ ] Create a separate POSIX [Chez scheme] library and move **setlocale** there
 - [ ] Include example and doc on how to use with an event lib like [chez-libev](https://github.com/akce/chez-libev)
 

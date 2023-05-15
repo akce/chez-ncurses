@@ -57,7 +57,7 @@
 
     ;; Write the headers.
     (mvaddch 0 1 ACS_RTEE)
-    (mvaddstr 0 2 "press q or double click left mouse button to quit")
+    (mvaddstr 0 2 "Press ALT-q or double click left mouse button to quit")
     (addch ACS_LTEE)
     (show-COLSxLINES)
     (mvaddstr MOUSE_MASK_ROW 1 (format "mouse mask: requested #x~x actual #x~x old #x~x~n" MOUSE_EVENT_MASK mouse-actual-mask mouse-old-mask))
@@ -140,6 +140,40 @@
             (mvaddstr EVENT_INFO_ROW 1 (format "mouse: unknown event #x~x" (mevent-bstate mevent*)))])
           (clear-to-row-end EVENT_INFO_ROW)))))
 
+(define show-event-key
+  (lambda (event-type keycode)
+    (mvaddstr EVENT_INFO_ROW 1 (format "~a pressed: #o~o ~d #x~x ~c" event-type keycode keycode keycode (integer->char keycode)))
+    (clear-to-row-end EVENT_INFO_ROW)))
+
+
+;; getch-or-false: return the next key, or #f if none.
+;;
+;; This function temporarily puts `getch` in non-blocking mode and tries to get the next key.
+;; The key is returned if available, otherwise #f is returned.
+;;
+;; This function can help reading ALT key combos as they are sent as KEY_ESCAPE followed by the key.
+;; A pressed ESCAPE on its own has nothing following and is seen after ESCDELAY milliseconds.
+;;
+;; NOTE: This assumes that nodelay is disabled by the calling app. ie, `getch` is in BLOCKING mode.
+(define getch-or-false
+  (case-lambda
+    [()
+     (getch-or-false stdscr)]
+    [(win)
+     ;; This function works by temporarily putting wgetch in non-blocking mode via nodelay.
+     (dynamic-wind
+       (lambda ()
+         (nodelay win #t))
+       (lambda ()
+         (let ([key (wgetch win)])
+           (cond
+             [(= key ERR)
+              #f]
+             [else
+               key])))
+       (lambda ()
+         (nodelay win #f)))]))
+
 ;; Running through `dynamic-wind` ensures that `endwin` is called and the screen restored, even on catastrophic failure.
 (dynamic-wind
   example-ncurses-init
@@ -152,8 +186,19 @@
       (lambda (break)
         (let loop ([ch (getch)])
           (cond
-            [(= ch (char->integer #\q))
-             (break)]
+            [(= ch KEY_ESCAPE)
+             (cond
+               [(getch-or-false)
+                => (lambda (key)
+                     (cond
+                       [(= key (char->integer #\q))
+                        ;; ALT-q exits the loop.
+                        (break)]
+                       [else
+                         (show-event-key "alt-key" key)]))]
+               [else
+                 ;; Escape pressed.
+                 (show-event-key "key" ch)])]
             [(= ch KEY_RESIZE)	; window size has changed.
              (erase)
              (example-screen-draw-static)]
@@ -161,8 +206,7 @@
              ;; Give handle-mouse-event `break` as it may decide to end the event loop too.
              (handle-mouse-event break)]
             [else
-              (mvaddstr EVENT_INFO_ROW 1 (format "key pressed: #o~o ~d #x~x ~c" ch ch ch (integer->char ch)))
-              (clear-to-row-end EVENT_INFO_ROW)])
+              (show-event-key "key" ch)])
           (refresh)
           (loop (getch))))))
 
