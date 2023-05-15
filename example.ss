@@ -156,8 +156,7 @@
              (break)]
             [(= ch KEY_RESIZE)	; window size has changed.
              (erase)
-             (example-screen-draw-static)
-             (show-COLSxLINES)]
+             (example-screen-draw-static)]
             [(= ch KEY_MOUSE)
              ;; Give handle-mouse-event `break` as it may decide to end the event loop too.
              (handle-mouse-event break)]
