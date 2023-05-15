@@ -59,9 +59,20 @@ All objects that are variables in the C [ncurses] interface should be variables 
 
 As [R6RS] and [Chez Scheme] encode chars using unicode, i'm not sure that there's any reason to use plain `getch`.
 
-Apart from those differences, it should (hopefully) be possible to learn how to use these bindings via the [ncurses] man pages.
+Some of the native [ncurses] mouse functions require memory references to get values, which for Chez Scheme means managing foreign memory. These functions have been changed to make things simpler for client code. Namely:
 
-A simple [example](example.ss) program is included.
+C signature | Scheme signature
+----------- | ----------------
+mousemask(mmask_t new_mask, mmask_t* old_mask) => actual_mask | (mousemask new_mask) => (values actual-mask old-mask)
+getmouse(MEVENT* mouse_event) | (call-with-mouse-event procedure) => return value of (procedure mevent*) or ERR
+mouse_trafo(int* y, int* x, bool to_screen) | (wmouse-trafo y x to-screen?) => (values y x) or error exception
+wmouse_trafo(WINDOW* win, int* y, int* x, bool to_screen) | (wmouse-trafo win* y x to-screen?) => (values y x) or error exception
+
+`call-with-mouse-event` is a special case in that it's not an [ncurses] function, but a useful wrapper for `getmouse`. `call-with-mouse-event` manages the foreign memory used to store the mouse event structure and only calls `procedure` if mouse event retrieval was successful. Note that the mouse event memory reference is only valid while `procedure` is running, so using `ungetmouse` should only be done from within that context.
+
+Accessors for mevent* members are provided: `mevent-id`, `mevent-y`, `mevent-x`, `mevent-z` and `mevent-bstate`.
+
+Apart from those differences, it should be possible to learn how to use these bindings via the [ncurses] man pages and by studying the included [example](example.ss) program.
 
 ## setlocale
 
@@ -71,7 +82,7 @@ Ideally, this belongs in a separate POSIX style library.
 
 ## TODO
 
-- [ ] Add support for the mouse. ie, things in [curs_mouse(3)](https://invisible-island.net/ncurses/man/curs_mouse.3x.html)
+- [x] Add support for the mouse. ie, things in [curs_mouse(3)](https://invisible-island.net/ncurses/man/curs_mouse.3x.html)
 - [ ] Document and add an example that uses ALT keystrokes
 - [ ] Create a separate POSIX [Chez scheme] library and move **setlocale** there
 - [ ] Include example and doc on how to use with an event lib like [chez-libev](https://github.com/akce/chez-libev)

@@ -1,5 +1,5 @@
 ;; chez scheme bindings for ncurses.
-;; Written by Jerry 2019-2021.
+;; Written by Jerry 2019-2021,2023.
 ;; SPDX-License-Identifier: Unlicense
 (library (ncurses)
   (export
@@ -92,6 +92,19 @@
 
    ;; curs_terminfo(3X)
    tigetnum
+
+   ;; curs_mouse(3X)
+   mousemask has-mouse ungetmouse mouseinterval wenclose wmouse-trafo mouse-trafo
+   ;; call-with-mouse-event replaces getmouse in this API.
+   call-with-mouse-event
+   ;; mevent provides access to the MEVENT struct.
+   mevent-id mevent-x mevent-y mevent-z mevent-bstate
+   BUTTON1_RELEASED BUTTON1_PRESSED BUTTON1_CLICKED BUTTON1_DOUBLE_CLICKED BUTTON1_TRIPLE_CLICKED
+   BUTTON2_RELEASED BUTTON2_PRESSED BUTTON2_CLICKED BUTTON2_DOUBLE_CLICKED BUTTON2_TRIPLE_CLICKED
+   BUTTON3_RELEASED BUTTON3_PRESSED BUTTON3_CLICKED BUTTON3_DOUBLE_CLICKED BUTTON3_TRIPLE_CLICKED
+   BUTTON4_RELEASED BUTTON4_PRESSED BUTTON4_CLICKED BUTTON4_DOUBLE_CLICKED BUTTON4_TRIPLE_CLICKED
+   BUTTON5_RELEASED BUTTON5_PRESSED BUTTON5_CLICKED BUTTON5_DOUBLE_CLICKED BUTTON5_TRIPLE_CLICKED
+   BUTTON_CTRL BUTTON_SHIFT BUTTON_ALT REPORT_MOUSE_POSITION
 
    ;; curs_legacy(3X), these require the NCURSES_OPAQUE definition.
    getattrs getbegx getbegy getcurx getcury getmaxx getmaxy getparx getpary
@@ -658,6 +671,147 @@
   (define wattr-on
     (lambda (win attr)
       (wattr_on win attr 0)))
+
+  ;;;;;; curs_mouse(3X)
+  ;; NCURSES_MOUSE_VERSION is the version of NCURSES mouse that this code is written against.
+  ;; It's not public or used in any way, it's only informational. Update when ncurses.h changes.
+  (define NCURSES_MOUSE_VERSION 2)
+
+  (define-syntax NCURSES_MOUSE_MASK
+    (lambda (x)
+      (syntax-case x ()
+        [(_ button mode)
+         #'(bitwise-arithmetic-shift-left mode (fx* (fx- button 1) 5))])))
+
+  (enum
+    (NCURSES_BUTTON_RELEASED	#o01)
+    (NCURSES_BUTTON_PRESSED	#o02)
+    (NCURSES_BUTTON_CLICKED	#o04)
+    (NCURSES_DOUBLE_CLICKED	#o10)
+    (NCURSES_TRIPLE_CLICKED	#o20)
+    (NCURSES_RESERVED_EVENT	#o40))
+
+  (enum
+    (BUTTON1_RELEASED		(NCURSES_MOUSE_MASK 1 NCURSES_BUTTON_RELEASED))
+    (BUTTON1_PRESSED		(NCURSES_MOUSE_MASK 1 NCURSES_BUTTON_PRESSED))
+    (BUTTON1_CLICKED		(NCURSES_MOUSE_MASK 1 NCURSES_BUTTON_CLICKED))
+    (BUTTON1_DOUBLE_CLICKED	(NCURSES_MOUSE_MASK 1 NCURSES_DOUBLE_CLICKED))
+    (BUTTON1_TRIPLE_CLICKED	(NCURSES_MOUSE_MASK 1 NCURSES_TRIPLE_CLICKED))
+
+    (BUTTON2_RELEASED		(NCURSES_MOUSE_MASK 2 NCURSES_BUTTON_RELEASED))
+    (BUTTON2_PRESSED		(NCURSES_MOUSE_MASK 2 NCURSES_BUTTON_PRESSED))
+    (BUTTON2_CLICKED		(NCURSES_MOUSE_MASK 2 NCURSES_BUTTON_CLICKED))
+    (BUTTON2_DOUBLE_CLICKED	(NCURSES_MOUSE_MASK 2 NCURSES_DOUBLE_CLICKED))
+    (BUTTON2_TRIPLE_CLICKED	(NCURSES_MOUSE_MASK 2 NCURSES_TRIPLE_CLICKED))
+
+    (BUTTON3_RELEASED		(NCURSES_MOUSE_MASK 3 NCURSES_BUTTON_RELEASED))
+    (BUTTON3_PRESSED		(NCURSES_MOUSE_MASK 3 NCURSES_BUTTON_PRESSED))
+    (BUTTON3_CLICKED		(NCURSES_MOUSE_MASK 3 NCURSES_BUTTON_CLICKED))
+    (BUTTON3_DOUBLE_CLICKED	(NCURSES_MOUSE_MASK 3 NCURSES_DOUBLE_CLICKED))
+    (BUTTON3_TRIPLE_CLICKED	(NCURSES_MOUSE_MASK 3 NCURSES_TRIPLE_CLICKED))
+
+    (BUTTON4_RELEASED		(NCURSES_MOUSE_MASK 4 NCURSES_BUTTON_RELEASED))
+    (BUTTON4_PRESSED		(NCURSES_MOUSE_MASK 4 NCURSES_BUTTON_PRESSED))
+    (BUTTON4_CLICKED		(NCURSES_MOUSE_MASK 4 NCURSES_BUTTON_CLICKED))
+    (BUTTON4_DOUBLE_CLICKED	(NCURSES_MOUSE_MASK 4 NCURSES_DOUBLE_CLICKED))
+    (BUTTON4_TRIPLE_CLICKED	(NCURSES_MOUSE_MASK 4 NCURSES_TRIPLE_CLICKED))
+
+    (BUTTON5_RELEASED		(NCURSES_MOUSE_MASK 5 NCURSES_BUTTON_RELEASED))
+    (BUTTON5_PRESSED		(NCURSES_MOUSE_MASK 5 NCURSES_BUTTON_PRESSED))
+    (BUTTON5_CLICKED		(NCURSES_MOUSE_MASK 5 NCURSES_BUTTON_CLICKED))
+    (BUTTON5_DOUBLE_CLICKED	(NCURSES_MOUSE_MASK 5 NCURSES_DOUBLE_CLICKED))
+    (BUTTON5_TRIPLE_CLICKED	(NCURSES_MOUSE_MASK 5 NCURSES_TRIPLE_CLICKED))
+
+    (BUTTON_CTRL		(NCURSES_MOUSE_MASK 6 #o001))
+    (BUTTON_SHIFT		(NCURSES_MOUSE_MASK 6 #o002))
+    (BUTTON_ALT			(NCURSES_MOUSE_MASK 6 #o004))
+    (REPORT_MOUSE_POSITION	(NCURSES_MOUSE_MASK 6 #o010)))
+
+  (define-ftype mmask_t unsigned-long)
+  (define-ftype mevent
+    (struct
+      (id	short)
+      (x	int)
+      (y	int)
+      (z	int)
+      (bstate	mmask_t)))
+
+  (define mevent?
+    (lambda (m*)
+      (ftype-pointer? mevent m*)))
+
+  (define mevent-id
+    (lambda (m*)
+      (ftype-ref mevent (id) m*)))
+
+  (define mevent-x
+    (lambda (m*)
+      (ftype-ref mevent (x) m*)))
+
+  (define mevent-y
+    (lambda (m*)
+      (ftype-ref mevent (y) m*)))
+
+  (define mevent-z
+    (lambda (m*)
+      (ftype-ref mevent (z) m*)))
+
+  (define mevent-bstate
+    (lambda (m*)
+      (ftype-ref mevent (bstate) m*)))
+
+  (define mousemask
+    (let ([c/func (foreign-procedure "mousemask" (mmask_t (* mmask_t)) mmask_t)])
+      (lambda (new-mask)
+        (auto-ptr ([old-mask* mmask_t])
+          (let ([actual-mask (c/func new-mask old-mask*)])
+            (values actual-mask (ftype-ref mmask_t () old-mask*)))))))
+
+  ;; call-with-mouse-event calls `procedure` with a mouse event only when there's a valid mouse event available.
+  ;; ie, call only if the underlying ncurses getmouse function returns OK.
+  ;; The mouse event object is only valid while procedure is executing, callers must not store references to
+  ;; it outside of `procedure`. This implies that `ungetmouse` is only valid from within `procedure`.
+  (define call-with-mouse-event
+    (let ([c/func (foreign-procedure "getmouse" ((* mevent)) int)])
+      (lambda (procedure)
+        (let* ([m* (make-ftype-pointer mevent (foreign-alloc (ftype-sizeof mevent)))]
+               [rc (c/func m*)])
+          (dynamic-wind
+            (lambda () #f)
+            (lambda ()
+              (if (fx=? rc OK)
+                (procedure m*)
+                ERR))
+            (lambda ()
+              (foreign-free (ftype-pointer-address m*))))))))
+
+  (c_funcs
+    (has-mouse () boolean)
+    (ungetmouse ((* mevent)) int)
+    ;; Should i case-lambda `mouseinterval` so no args is the query (-1) version?
+    (mouseinterval (int) int)
+    (wenclose (window* int int) boolean)
+    )
+
+  ;; Throws an exception rather than return an error code as this function returns `values` on success.
+  (define wmouse-trafo
+    (let ([c/func (foreign-procedure "wmouse_trafo" (window* (* int) (* int) boolean) boolean)])
+      (lambda (win y x to-screen?)
+        (auto-ptr ([x* int]
+                   [y* int])
+          (ftype-set! int () y* y)
+          (ftype-set! int () x* x)
+          (let ([rc (c/func win y* x* to-screen?)])
+            (cond
+              [rc
+                (values (ftype-ref int () y*) (ftype-ref int () x*))]
+              [else
+                (error 'wmouse-trafo "Error in params or translated points not within window" win y x to-screen?)]))))))
+
+  (define mouse-trafo
+    (lambda (y x to-screen?)
+      ;; curs_mouse(3X) writes that mouse_trafo is equivalent to wmouse_trafo with win set to stdscr.
+      (wmouse-trafo stdscr y x to-screen?)))
 
    ;; HACK: setlocale here is linux specific.
   (c_funcs
