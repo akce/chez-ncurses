@@ -24,6 +24,8 @@
 ;; Not all terms support REPORT_MOUSE_POSITION or have it enabled if they do.
 ;; ie, you may need to turn it on via some config or even use VT codes or similar.
 (define MOUSE_EVENT_MASK (bitwise-ior BUTTON1_CLICKED BUTTON1_DOUBLE_CLICKED BUTTON2_CLICKED BUTTON3_CLICKED REPORT_MOUSE_POSITION))
+(define mouse-actual-mask #f)
+(define mouse-old-mask #f)
 
 (define example-ncurses-init
   (lambda ()
@@ -45,7 +47,8 @@
     (curs-set 0)
     (use-default-colors)
     (let-values ([(actual-mask old-mask) (mousemask MOUSE_EVENT_MASK)])
-      (mvaddstr MOUSE_MASK_ROW 1 (format "mouse mask: requested #x~x actual #x~x old #x~x~n" MOUSE_EVENT_MASK actual-mask old-mask)))))
+      (set! mouse-actual-mask actual-mask)
+      (set! mouse-old-mask old-mask))))
 
 ;; Draw the static (non-changing) screen elements.
 (define example-screen-draw-static
@@ -57,6 +60,7 @@
     (mvaddstr 0 2 "press q or double click left mouse button to quit")
     (addch ACS_LTEE)
     (show-COLSxLINES)
+    (mvaddstr MOUSE_MASK_ROW 1 (format "mouse mask: requested #x~x actual #x~x old #x~x~n" MOUSE_EVENT_MASK mouse-actual-mask mouse-old-mask))
 
     (let-syntax
       ([draw-column
@@ -151,6 +155,8 @@
             [(= ch (char->integer #\q))
              (break)]
             [(= ch KEY_RESIZE)	; window size has changed.
+             (erase)
+             (example-screen-draw-static)
              (show-COLSxLINES)]
             [(= ch KEY_MOUSE)
              ;; Give handle-mouse-event `break` as it may decide to end the event loop too.
