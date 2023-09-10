@@ -1,13 +1,16 @@
 # chez-ncurses GNUmakefile.
-# Written by Jerry 2019-2021.
+# Written by Jerry 2019-2023.
 # SPDX-License-Identifier: Unlicense
 
 # Path to chez scheme executable.
 SCHEME = /usr/bin/chez-scheme
+SCHEMEVERSION = $(shell $(SCHEME) --version 2>&1)
 
 # Install destination directory. This should be an object directory contained in (library-directories).
 # eg, set in CHEZSCHEMELIBDIRS environment variable.
-LIBDIR = ~/lib/csv$(shell $(SCHEME) --version 2>&1)
+PREFIX = $(HOME)
+LIBDIR = $(PREFIX)/lib/csv$(SCHEMEVERSION)
+BUILDDIR = BUILD-csv$(SCHEMEVERSION)
 
 # Scheme compile flags.
 SFLAGS = -q
@@ -22,8 +25,12 @@ INSTALL = /usr/bin/install
 # PROJDIR/
 #   FFI
 #   SUBSRC ..
-#   SUBOBJ ..
-#   SUBWPO ..
+# BUILDDIR/
+#   FFIOBJ ..
+#   BSUBOBJ ..
+#   BSUBWPO ..
+#   BTOPOBJ
+#   BTOPWPO
 #
 # Where TOP is the high level library definition that imports all sub libs within PROJDIR.
 # FFI (if needed) is a C compilable lib.
@@ -37,6 +44,12 @@ TOPSRC = ncurses.chezscheme.sls
 TOPOBJ = $(TOPSRC:.sls=.so)
 TOPWPO = $(TOPSRC:.sls=.wpo)
 
+# Built versions of scheme code above.
+BSUBOBJ = $(addprefix $(BUILDDIR)/,$(SUBOBJ))
+BSUBWPO = $(addprefix $(BUILDDIR)/,$(SUBWPO))
+BTOPOBJ = $(addprefix $(BUILDDIR)/,$(TOPOBJ))
+BTOPWPO = $(addprefix $(BUILDDIR)/,$(TOPWPO))
+
 # Installed versions of all the above.
 ITOPSRC = $(addprefix $(LIBDIR)/,$(TOPSRC))
 ITOPOBJ = $(addprefix $(LIBDIR)/,$(TOPOBJ))
@@ -49,25 +62,45 @@ ITOPWPO = $(addprefix $(LIBDIR)/,$(TOPWPO))
 # Default to just a local build.
 all: build
 
-# Build target is structured so that the main wpo file is dependant on all scheme source files and triggers
-# a Chez compile such that Chez rebuilds all dependancies on demand.
-$(TOPWPO): $(TOPSRC)
-	echo '(reset-handler abort) (compile-imported-libraries #t) (generate-wpo-files #t) (library-directories ".") (compile-library "$(TOPSRC)")' | $(SCHEME) $(SFLAGS)
+# In-place local development test compile. This is built in a separate
+# directory BUILDDIR so as to keep build files out of the way.
+$(BUILDDIR)/%.wpo: %.sls
+	echo	\
+		"(reset-handler abort)"			\
+		"(compile-imported-libraries #t)"	\
+		"(generate-wpo-files #t)"		\
+		"(library-directories"			\
+		'  (list (cons "." "$(BUILDDIR)")))'	\
+		'(import ($(PROJDIR)))'			\
+		| $(SCHEME) $(SFLAGS)
+
+# Installed compile. Source files must be copied to destination LIBDIR first
+# (via make rules) where this recipe compiles in the remote location.
+# This rule is available but not really necessary given that apps should do
+# their own whole program compilation and optimisations..
+# ie, make install-src should be sufficient.
+%.wpo: %.sls
+	echo	\
+		"(reset-handler abort)"			\
+		"(compile-imported-libraries #t)"	\
+		"(generate-wpo-files #t)"		\
+		'(library-directories "$(LIBDIR)")'	\
+		'(import ($(PROJDIR)))'			\
+		| $(SCHEME) $(SFLAGS)
 
 $(LIBDIR)/%: %
-	$(INSTALL) -p -D "$<" "$@"
+	$(INSTALL) -m u=rw,go=r,a-s -p -D "$<" "$@"
 
-build: $(TOPWPO)
+build: $(BTOPWPO)
 
-# Default install target is for everything.
-install: install-so install-src
+install: install-src
 
-install-so: $(ITOPWPO) $(ITOPOBJ)
+install-so: install-src $(ITOPWPO)
 
 install-src: $(ITOPSRC)
 
 clean:
-	$(RM) $(TOPOBJ) $(TOPWPO)
+	$(RM) -r $(BUILDDIR)
 
 clean-install:
 	$(RM) $(ITOPOBJ) $(ITOPWPO) $(ITOPSRC)
