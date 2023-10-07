@@ -119,6 +119,13 @@
   (import
    (rename (except (chezscheme) box) (meta %meta)))
 
+  ;; Track the last version of ncurses.h that these bindings match.
+  ;; It's not public or used in any way, it's only informational; update with changes.
+  (define NCURSES_VERSION_MAJOR 6)
+  (define NCURSES_VERSION_MINOR 4)
+  (define NCURSES_VERSION_PATCH 20221231)
+  (define NCURSES_MOUSE_VERSION 2)
+
   (define-syntax auto-ptr
     (syntax-rules ()
       [(_ ((var type) ...) body body* ...)
@@ -707,9 +714,6 @@
       (wattr_on win attr 0)))
 
   ;;;;;; curs_mouse(3X)
-  ;; NCURSES_MOUSE_VERSION is the version of NCURSES mouse that this code is written against.
-  ;; It's not public or used in any way, it's only informational. Update when ncurses.h changes.
-  (define NCURSES_MOUSE_VERSION 2)
 
   (define-syntax NCURSES_MOUSE_MASK
     (lambda (x)
