@@ -5,6 +5,7 @@
   (export
    ERR OK
 
+   key-symbols key-ref
    KEY_ESCAPE
    KEY_CODE_YES KEY_MIN KEY_BREAK KEY_SRESET KEY_RESET
    KEY_DOWN KEY_UP KEY_LEFT KEY_RIGHT KEY_HOME KEY_BACKSPACE KEY_F0 KEY_DL KEY_IL KEY_DC KEY_IC KEY_EIC KEY_CLEAR KEY_EOS KEY_EOL KEY_SF KEY_SR KEY_NPAGE KEY_PPAGE KEY_STAB KEY_CTAB KEY_CATAB KEY_ENTER KEY_PRINT KEY_LL KEY_A1 KEY_A3 KEY_B2 KEY_C1 KEY_C3 KEY_BTAB KEY_BEG KEY_CANCEL KEY_CLOSE KEY_COMMAND KEY_COPY KEY_CREATE KEY_END KEY_EXIT KEY_FIND KEY_HELP KEY_MARK KEY_MESSAGE KEY_MOVE KEY_NEXT KEY_OPEN KEY_OPTIONS KEY_PREVIOUS KEY_REDO KEY_REFERENCE KEY_REFRESH KEY_REPLACE KEY_RESTART KEY_RESUME KEY_SAVE KEY_SBEG KEY_SCANCEL KEY_SCOMMAND KEY_SCOPY KEY_SCREATE KEY_SDC KEY_SDL KEY_SELECT KEY_SEND KEY_SEOL KEY_SEXIT KEY_SFIND KEY_SHELP KEY_SHOME KEY_SIC KEY_SLEFT KEY_SMESSAGE KEY_SMOVE KEY_SNEXT KEY_SOPTIONS KEY_SPREVIOUS KEY_SPRINT KEY_SREDO KEY_SREPLACE KEY_SRIGHT KEY_SRSUME KEY_SSAVE KEY_SSUSPEND KEY_SUNDO KEY_SUSPEND KEY_UNDO KEY_MOUSE KEY_RESIZE
@@ -261,9 +262,36 @@
    (ERR	-1)
    (OK	0))
 
-  (enum
-   ;; KEY_ESCAPE is a local addition.
-   ;; It's here because it's useful to detect ESCAPE keys and ALT key combos.
+  (define-syntax define-keys
+    (lambda (x)
+      (syntax-case x ()
+        [(_ (key-table key-getter) (name value) ...)
+         #'(begin
+             (define key-table
+               (let ([ht (make-eqv-hashtable)])
+                 (hashtable-set! ht value 'name) ...
+                 ;; Expand and add function keys. There's room for 64.
+                 (do
+                   ([i 1 (fx+ i 1)])
+                   [(fx>? i 64) ht]
+                   (hashtable-set! ht (fx+ #;KEY_F0 #o410 i)
+                     (string->symbol (format #;"KEY_F~2,'0d" "KEY_F~d" i))))))
+             (define key-getter
+               (lambda (key-num)
+                 (cond
+                   [(hashtable-ref key-table key-num #f)
+                    => values]
+                   [else
+                     (integer->char key-num)])))
+             ;; Keep these defines for backwards compat.
+             (define name value) ...)])))
+
+  (define-keys (key-symbols key-ref)
+   ;; KEY_ESCAPE is a chez-ncurses addition.
+   ;; It's here because it's useful to detect ALT key combos.
+   ;; TODO Add the rest of the ASCII control chars?
+   ;; NOTE ASCII form-feed (^L) is #\page in Chez Scheme.
+   ;; TODO rename KEY_ESCAPE to ASCII_ESCAPE? Or drop prefix altogether?
    (KEY_ESCAPE      #o033)
 
    (KEY_CODE_YES    #o400)
@@ -360,12 +388,14 @@
    (KEY_UNDO        #o630)
    (KEY_MOUSE       #o631)
    (KEY_RESIZE      #o632)
+   )
 
-   (KEY_MAX         #o777))
+  ;; Internal ncurses.h definition not in getch(3).
+  (define KEY_MAX #o777)
 
   (define KEY_F
     (lambda (n)
-      (+ KEY_F0 n)))
+      (fx+ KEY_F0 n)))
 
   (c/vars
    (COLORS	int)

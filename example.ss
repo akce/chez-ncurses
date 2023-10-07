@@ -142,11 +142,11 @@
 
 (define show-event-key
   (lambda (event-type keycode)
-    (mvaddstr EVENT_INFO_ROW 1 (format "~a pressed: #o~o ~d #x~x ~c" event-type keycode keycode keycode (integer->char keycode)))
+    (mvaddstr EVENT_INFO_ROW 1 (format "~a pressed: #o~o #d~d #x~x ~s" event-type keycode keycode keycode (key-ref keycode)))
     (clear-to-row-end EVENT_INFO_ROW)))
 
 
-;; getch-or-false: return the next key, or #f if none.
+;; getch-now: quickly get the next key, or #f if none.
 ;;
 ;; This function temporarily puts `getch` in non-blocking mode and tries to get the next key.
 ;; The key is returned if available, otherwise #f is returned.
@@ -155,29 +155,27 @@
 ;; A pressed ESCAPE on its own has nothing following and is seen after ESCDELAY milliseconds.
 ;;
 ;; NOTE: This assumes that nodelay is disabled by the calling app. ie, `getch` is in BLOCKING mode.
-(define getch-or-false
+(define getch-now
   (case-lambda
     [()
-     (getch-or-false stdscr)]
+     (getch-now stdscr)]
     [(win)
      ;; This function works by temporarily putting wgetch in non-blocking mode via nodelay.
      (dynamic-wind
        (lambda ()
          (nodelay win #t))
        (lambda ()
-         (let ([key (wgetch win)])
-           (cond
-             [(= key ERR)
-              #f]
-             [else
-               key])))
+         ;; Return #f if ESCDELAY timeout expires without a key press.
+         ;; Note that our getch wrappers raise an error rather than return ERR.
+         (guard (e [else #f])
+           (wgetch win)))
        (lambda ()
          (nodelay win #f)))]))
 
 ;; Running through `dynamic-wind` ensures that `endwin` is called and the screen restored, even on catastrophic failure.
 (dynamic-wind
   example-ncurses-init
-  
+
   (lambda ()
     (example-screen-draw-static)
 
@@ -185,13 +183,13 @@
     (call/cc
       (lambda (break)
         (let loop ([ch (getch)])
-          (cond
-            [(= ch KEY_ESCAPE)
+          (case (key-ref ch)
+            [(KEY_ESCAPE)
              (cond
-               [(getch-or-false)
+               [(getch-now)
                 => (lambda (key)
-                     (cond
-                       [(= key (char->integer #\q))
+                     (case (key-ref key)
+                       [(#\q)
                         ;; ALT-q exits the loop.
                         (break)]
                        [else
@@ -199,10 +197,10 @@
                [else
                  ;; Escape pressed.
                  (show-event-key "key" ch)])]
-            [(= ch KEY_RESIZE)	; window size has changed.
+            [(KEY_RESIZE)	; window size has changed.
              (erase)
              (example-screen-draw-static)]
-            [(= ch KEY_MOUSE)
+            [(KEY_MOUSE)
              ;; Give handle-mouse-event `break` as it may decide to end the event loop too.
              (handle-mouse-event break)]
             [else
