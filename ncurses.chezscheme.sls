@@ -92,7 +92,7 @@
    use-default-colors assume-default-colors
 
    ;; curs_terminfo(3X)
-   tigetnum
+   tigetflag tigetnum tigetstr
 
    ;; curs_mouse(3X)
    mousemask has-mouse ungetmouse mouseinterval wenclose wmouse-trafo mouse-trafo
@@ -155,7 +155,7 @@
               (eq? 'chtype x))
             (syntax->datum args))))
       (syntax-case stx ()
-        [(k (name (types ...) return))
+        [(_ (name (types ...) return))
          (has-chtype? #'(types ...))
          ;; For ncurses functions with a chtype argument, generate a calling function
          ;; that allows for those args to take either an int (as ncurses expects), or
@@ -205,13 +205,25 @@
        (begin
          (define col val) ...)]))
 
+  ;; [proc] return ftypes (* unsigned-8) as a UTF8 string.
+  (define u8*->string
+    (lambda (fptr)
+      (utf8->string
+       (let f ([i 0])
+         (let ([c (ftype-ref unsigned-8 () fptr i)])
+           (if (fx= c 0)
+             (make-bytevector i)
+             (let ([bv (f (fx+ i 1))])
+               (bytevector-u8-set! bv i c)
+               bv)))))))
+
   (define library-init
     (load-shared-object "libncursesw.so.6"))
 
   (define-ftype window* void*)
   (define-ftype chtype unsigned)
   (define-ftype attr_t chtype)
-  ;; Redefine the Chez wchar_t type as it requires a real char, whereas our KEY_ defs
+  ;; Redefine Chez Scheme's wchar_t type as it requires a real char, whereas our KEY_ defs
   ;; are INTs which causes problems as currently written. eg, (ungetch KEY_RESIZE).
   (define-ftype wchar_t unsigned)
   (define-ftype wint_t unsigned)
@@ -640,9 +652,6 @@
    (use-default-colors () int)
    (assume-default-colors (int int) int)
 
-   ;; curs_terminfo
-   (tigetnum (string) int)
-
    ;; curs_legacy
    (getattrs (window*) int)
    (getbegx (window*) int)
@@ -711,6 +720,40 @@
   (define wattr-on
     (lambda (win attr)
       (wattr_on win attr 0)))
+
+  ;; curs_terminfo(3X)
+  (define tigetflag
+    (lambda (str)
+      (let ([rc ((foreign-procedure "tigetflag" (string) int) str)])
+        (cond
+          [(= rc 0)
+           (errorf 'tigetflag "~s cancelled or absent from terminal description" str)]
+          [(= rc -1)
+           (errorf 'tigetflag "~s is not a boolean capability" str)]
+          [else
+            rc]))))
+
+  (define tigetnum
+    (lambda (str)
+      (let ([rc ((foreign-procedure "tigetnum" (string) int) str)])
+        (cond
+          [(= rc -1)
+           (errorf 'tigetnum "~s cancelled or absent from terminal description" str)]
+          [(= rc -2)
+           (errorf 'tigetnum "~s is not a numeric capability" str)]
+          [else
+            rc]))))
+
+  (define tigetstr
+    (lambda (str)
+      (let ([addr ((foreign-procedure "tigetstr" (string) iptr) str)])
+        (cond
+          [(= addr 0)
+           (errorf 'tigetstr "~s cancelled or absent from terminal description" str)]
+          [(= addr -1)
+           (errorf 'tigetstr "~s is not a string capability" str)]
+          [else
+            (u8*->string (make-ftype-pointer unsigned-8 addr))]))))
 
   ;;;;;; curs_mouse(3X)
 
