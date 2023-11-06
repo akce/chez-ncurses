@@ -18,14 +18,20 @@
  (ncurses))
 
 (define WIN_INFO_ROW 1)
-(define MOUSE_MASK_ROW 2)
-(define EVENT_INFO_ROW 3)
-(define ACS_INFO_ROW 4)
+(define COLOUR_INFO_ROW 2)
+(define MOUSE_MASK_ROW 3)
+(define EVENT_INFO_ROW 4)
+(define ACS_INFO_ROW 5)
 ;; Not all terms support REPORT_MOUSE_POSITION or have it enabled if they do.
 ;; ie, you may need to turn it on via some config or even use VT codes or similar.
 (define MOUSE_EVENT_MASK (bitwise-ior BUTTON1_CLICKED BUTTON1_DOUBLE_CLICKED BUTTON2_CLICKED BUTTON3_CLICKED REPORT_MOUSE_POSITION))
 (define mouse-actual-mask #f)
 (define mouse-old-mask #f)
+
+(define use-colour? #f)
+(define STYLE_BORDER 44)
+(define STYLE_LABEL 45)
+(define STYLE_TEXT 46)
 
 (define example-ncurses-init
   (lambda ()
@@ -50,17 +56,42 @@
       (set! mouse-actual-mask actual-mask)
       (set! mouse-old-mask old-mask))))
 
+(define-syntax with-attr
+  (syntax-rules ()
+    [(_ (attr pair) body body* ...)
+     (with-attr (stdscr attr pair) body body* ...)]
+    [(_ (win attr pair) body body* ...)
+     (let-values ([(old-attr old-colour) (wattr-get win)])
+       (dynamic-wind
+         (lambda () #f)
+         (lambda ()
+           (cond
+             [use-colour?
+               (wattr-set win attr pair)]
+             [else
+               ;; Call without setting colour.
+               ;; This allows for setting attributes (like A_REVERSE) only.
+               (wattr-set win attr)])
+           body
+           body* ...)
+         (lambda ()
+           (wattr-set win old-attr old-colour))))]))
+
 ;; Draw the static (non-changing) screen elements.
 (define example-screen-draw-static
   (lambda ()
-    (box stdscr ACS_VLINE ACS_HLINE)
+    (with-attr (stdscr A_NORMAL STYLE_BORDER)
+      (box stdscr ACS_VLINE ACS_HLINE))
 
     ;; Write the headers.
     (mvaddch 0 1 ACS_RTEE)
-    (mvaddstr 0 2 "Press ALT-q or double click left mouse button to quit")
-    (addch ACS_LTEE)
-    (show-COLSxLINES)
-    (mvaddstr MOUSE_MASK_ROW 1 (format "mouse mask: requested #x~x actual #x~x old #x~x~n" MOUSE_EVENT_MASK mouse-actual-mask mouse-old-mask))
+    (with-attr (stdscr A_NORMAL STYLE_LABEL)
+      (mvaddstr 0 2 "Press ALT-q or double click left mouse button to quit"))
+    (with-attr (stdscr A_NORMAL STYLE_TEXT)
+      (addch ACS_LTEE)
+      (show-COLSxLINES)
+      (show-colour-info)
+      (mvaddstr MOUSE_MASK_ROW 1 (format "mouse mask: requested #x~x actual #x~x old #x~x~n" MOUSE_EVENT_MASK mouse-actual-mask mouse-old-mask)))
 
     (let-syntax
       ([draw-column
@@ -75,7 +106,7 @@
                 (loop (fx+ y 1) (cdr chvals) (cdr chstrs))))])])
       ;; left column
       (draw-column
-        ACS_INFO_ROW 1 
+        ACS_INFO_ROW 1
         ACS_ULCORNER
         ACS_LLCORNER
         ACS_URCORNER
@@ -118,6 +149,10 @@
   (lambda ()
     (mvaddstr WIN_INFO_ROW 1 (format "window (cols x lines): ~d x ~d" COLS LINES))))
 
+(define show-colour-info
+  (lambda ()
+    (mvaddstr COLOUR_INFO_ROW 1 (format "Colours ~d Pairs ~d has-colours? ~a can-change-colour? ~a" COLORS COLOR_PAIRS (has-colors) (can-change-color)))))
+
 (define clear-to-row-end
   (lambda (row)
      (clrtoeol)
@@ -142,7 +177,8 @@
 
 (define show-event-key
   (lambda (event-type keycode)
-    (mvaddstr EVENT_INFO_ROW 1 (format "~a pressed: #o~o #d~d #x~x ~s" event-type keycode keycode keycode (key-ref keycode)))
+    (with-attr (A_REVERSE STYLE_TEXT)
+      (mvaddstr EVENT_INFO_ROW 1 (format "~a pressed: #o~o #d~d #x~x ~s" event-type keycode keycode keycode (key-ref keycode))))
     (clear-to-row-end EVENT_INFO_ROW)))
 
 
@@ -172,11 +208,35 @@
        (lambda ()
          (nodelay win #f)))]))
 
+(define-syntax change-colour
+  (syntax-rules ()
+    [(_ (colour r g b) ...)
+     (begin
+       (change-colour colour r g b)
+       ...)]
+    [(_ colour r g b)
+     (let ([rc (init-color colour r g b)])
+       (when (= rc ERR)
+         (error 'init-color (format "Error changing colour: ~s" 'colour) r g b)))]))
+
 ;; Running through `dynamic-wind` ensures that `endwin` is called and the screen restored, even on catastrophic failure.
 (dynamic-wind
   example-ncurses-init
 
   (lambda ()
+    ;; Normal RGB Max = 100
+    ;; Extended RGB Max = 32767
+    (define COLOUR_NONE -1)
+    (when (> COLORS 7)
+      (set! use-colour? #t)
+      (when (can-change-color)
+        (change-colour
+          (COLOR_BLUE 682 816 682)
+          (COLOR_MAGENTA 761 682 816)
+          (COLOR_CYAN 878 686 569)))
+      (init-pair STYLE_TEXT COLOR_BLUE COLOUR_NONE)
+      (init-pair STYLE_LABEL COLOR_MAGENTA COLOUR_NONE)
+      (init-pair STYLE_BORDER COLOR_CYAN COLOUR_NONE))
     (example-screen-draw-static)
 
     ;; Main event loop.

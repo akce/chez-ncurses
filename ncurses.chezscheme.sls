@@ -69,7 +69,11 @@
    init-extended-pair init-extended-color extended-color-content extended-pair-content reset-color-pairs
 
    ;; curs_attr(3X)
-   attr-get wattr-get attr-set wattr-set attr-off wattr-off attr-on wattr-on attroff wattroff attron wattron attrset wattrset chgat wchgat mvchgat mvwchgat color-set wcolor-set standend wstandend standout wstandout
+   #;attr-get wattr-get #;attr-set wattr-set #;attr-off #;wattr-off #;attr-on #;wattr-on
+   ;; Remove legacy setters, use underscored versions instead.
+   ;;attroff wattroff attron wattron attrset wattrset
+
+   chgat wchgat mvchgat mvwchgat color-set wcolor-set standend wstandend standout wstandout
    A_NORMAL A_STANDOUT A_UNDERLINE A_REVERSE A_BLINK A_DIM A_BOLD A_ALTCHARSET
    A_INVIS A_PROTECT A_HORIZONTAL A_LEFT A_LOW A_RIGHT A_TOP A_VERTICAL A_ITALIC
 
@@ -580,20 +584,21 @@
    (reset-color-pairs () void)
 
    ;; curs_attr
-   (attr-get ((* attr_t) (* short) void*) int)
-   (wattr-get (window* (* attr_t) (* short) void*) int)
-   (attr-set (attr_t short void*) int)
-   (wattr-set (window* attr_t short void*) int)
-   (attr_off (attr_t void*) int)
-   (wattr_off (window* attr_t void*) int)
-   (attr_on (attr_t void*) int)
-   (wattr_on (window* attr_t void*) int)
-   (attroff (int) int)
-   (wattroff (window* int) int)
-   (attron (int) int)
-   (wattron (window* int) int)
-   (attrset (int) int)
-   (wattrset (window* int) int)
+   #;(attr-get ((* attr_t) (* short) void*) int)
+   (wattr_get (window* (* attr_t) (* short) (* int)) int)
+   #;(attr-set (attr_t short void*) int)
+   (wattr_set (window* attr_t short (* int)) int)
+   #;(attr_off (attr_t void*) int)
+   #;(wattr_off (window* attr_t void*) int)
+   #;(attr_on (attr_t void*) int)
+   #;(wattr_on (window* attr_t void*) int)
+   #;(attroff (int) int)
+   #;(wattroff (window* int) int)
+   #;(attron (int) int)
+   #;(wattron (window* int) int)
+   #;(attrset (int) int)
+   #;(wattrset (window* int) int)
+
    (chgat (int attr_t short void*) int)
    (wchgat (window* int attr_t short void*) int)
    (mvchgat (int int int attr_t short void*) int)
@@ -703,21 +708,43 @@
       (values (getmaxy w) (getmaxx w))))
 
   ;;;;;
-  ;; None of the pure attribute functions use the opt argument.
   ;; See curs_attr(3X) for more detail.
-  (define attr-off
+  ;; `opt` is used for extended colours and is used in this API as `pair` is the same
+  ;; colour value except truncated to short.
+
+  (define wattr-get
+    (lambda (win)
+      (auto-ptr ([attr attr_t]
+                 [opts int])
+        (let ([rc (wattr_get win attr (make-ftype-pointer short 0) opts)])
+          (cond
+            [(= rc OK)
+             (values (ftype-ref attr_t () attr) (ftype-ref int () opts))]
+            [else
+              (error 'wattr-get "Error" win rc)])))))
+
+  (define wattr-set
+    (case-lambda
+      [(win attr)
+       (wattr_set win attr 0 (make-ftype-pointer int 0))]
+      [(win attr opts)
+       (auto-ptr ([mem int])
+         (ftype-set! int () mem opts)
+         (wattr_set win attr 0 mem))]))
+
+  #;(define attr-off
     (lambda (attr)
       (attr_off attr 0)))
 
-  (define wattr-off
+  #;(define wattr-off
     (lambda (win attr)
       (wattr_off win attr 0)))
 
-  (define attr-on
+  #;(define attr-on
     (lambda (attr)
       (attr_on attr 0)))
 
-  (define wattr-on
+  #;(define wattr-on
     (lambda (win attr)
       (wattr_on win attr 0)))
 
