@@ -39,6 +39,11 @@ INSTALL = /usr/bin/install
 
 PROJDIR = ncurses
 
+# Source files, shared objects, and whole program optimisations for the library subdirectory.
+SUBSRC = $(addprefix $(PROJDIR)/,common.chezscheme.sls panel.chezscheme.sls)
+SUBOBJ = $(SUBSRC:.sls=.so)
+SUBWPO = $(SUBSRC:.sls=.wpo)
+
 # Top level (ie, root) library source, .. etc.
 TOPSRC = ncurses.chezscheme.sls
 TOPOBJ = $(TOPSRC:.sls=.so)
@@ -46,11 +51,14 @@ TOPWPO = $(TOPSRC:.sls=.wpo)
 
 # Built versions of scheme code above.
 BSUBOBJ = $(addprefix $(BUILDDIR)/,$(SUBOBJ))
-BSUBWPO = $(addprefix $(BUILDDIR)/,$(SUBWPO))
+BSUBWPO = $(BUILDDIR)/$(PROJDIR)/panel.chezscheme.wpo
 BTOPOBJ = $(addprefix $(BUILDDIR)/,$(TOPOBJ))
 BTOPWPO = $(addprefix $(BUILDDIR)/,$(TOPWPO))
 
 # Installed versions of all the above.
+ISUBSRC = $(addprefix $(LIBDIR)/,$(SUBSRC))
+ISUBOBJ = $(addprefix $(LIBDIR)/,$(SUBOBJ))
+ISUBWPO = $(addprefix $(LIBDIR)/,$(SUBWPO))
 ITOPSRC = $(addprefix $(LIBDIR)/,$(TOPSRC))
 ITOPOBJ = $(addprefix $(LIBDIR)/,$(TOPOBJ))
 ITOPWPO = $(addprefix $(LIBDIR)/,$(TOPWPO))
@@ -64,6 +72,16 @@ all: build
 
 # In-place local development test compile. This is built in a separate
 # directory BUILDDIR so as to keep build files out of the way.
+$(BUILDDIR)/$(PROJDIR)/panel.chezscheme.wpo: $(PROJDIR)/panel.chezscheme.sls
+	echo	\
+		"(reset-handler abort)"			\
+		"(compile-imported-libraries #t)"	\
+		"(generate-wpo-files #t)"		\
+		"(library-directories"			\
+		'  (list (cons "." "$(BUILDDIR)")))'	\
+		'(import (ncurses panel))'		\
+		| $(SCHEME) $(SFLAGS)
+
 $(BUILDDIR)/%.wpo: %.sls
 	echo	\
 		"(reset-handler abort)"			\
@@ -91,13 +109,13 @@ $(BUILDDIR)/%.wpo: %.sls
 $(LIBDIR)/%: %
 	$(INSTALL) -m u=rw,go=r,a-s -p -D "$<" "$@"
 
-build: $(BTOPWPO)
+build: $(BTOPWPO) $(BSUBWPO)
 
 install: install-src
 
 install-so: install-src $(ITOPWPO)
 
-install-src: $(ITOPSRC)
+install-src: $(ITOPSRC) $(ISUBSRC)
 
 clean:
 	$(RM) -r $(BUILDDIR)
