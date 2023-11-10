@@ -4,7 +4,8 @@
 ;; - prints the keycode info for pressed keys
 ;; - shows the window dimensions
 ;; - displays the ACS characters
-;; - responds to some mouse button clicks.
+;; - responds to some mouse button clicks
+;; - use of separate newwin for event info.
 
 ;; chez-ncurses is only a thin wrapper around the ncurses library so it should be possible
 ;; to learn how this app works by using the ncurses man pages.
@@ -16,6 +17,8 @@
  (rnrs)
  (only (chezscheme) format logtest)
  (ncurses))
+
+(define event-win #f)
 
 (define WIN_INFO_ROW 1)
 (define COLOUR_INFO_ROW 2)
@@ -54,7 +57,8 @@
     (use-default-colors)
     (let-values ([(actual-mask old-mask) (mousemask MOUSE_EVENT_MASK)])
       (set! mouse-actual-mask actual-mask)
-      (set! mouse-old-mask old-mask))))
+      (set! mouse-old-mask old-mask))
+    (set! event-win (newwin 1 (fx- COLS 2) EVENT_INFO_ROW 1))))
 
 (define-syntax with-attr
   (syntax-rules ()
@@ -91,7 +95,7 @@
       (addch ACS_LTEE)
       (show-COLSxLINES)
       (show-colour-info)
-      (mvaddstr MOUSE_MASK_ROW 1 (format "mouse mask: requested #x~x actual #x~x old #x~x~n" MOUSE_EVENT_MASK mouse-actual-mask mouse-old-mask)))
+      (mvaddstr MOUSE_MASK_ROW 1 (format "mouse mask: requested #x~x actual #x~x old #x~x" MOUSE_EVENT_MASK mouse-actual-mask mouse-old-mask)))
 
     (let-syntax
       ([draw-column
@@ -141,9 +145,7 @@
 
     ;;   ACS_S1 ACS_S9
     ;;   ACS_S3 ACS_S7
-
-    ;; Redraw the screen and wait for user input.
-    (refresh)))
+    ))
 
 (define show-COLSxLINES
   (lambda ()
@@ -152,12 +154,6 @@
 (define show-colour-info
   (lambda ()
     (mvaddstr COLOUR_INFO_ROW 1 (format "Colours ~d Pairs ~d has-colours? ~a can-change-colour? ~a" COLORS COLOR_PAIRS (has-colors) (can-change-color)))))
-
-(define clear-to-row-end
-  (lambda (row)
-     (clrtoeol)
-     ;; redraw the vertical line that clrtoeol erased.
-     (mvaddch row (- COLS 1) ACS_VLINE)))
 
 (define handle-mouse-event
   (lambda (break)
@@ -168,18 +164,20 @@
           [(logtest event-mask BUTTON1_DOUBLE_CLICKED)
            (break)]
           [(logtest event-mask MOUSE_EVENT_MASK)
-           (mvaddstr EVENT_INFO_ROW 1
+           (werase event-win)
+           (mvwaddstr event-win 0 0
                      (format "mouse pressed: id #x~x row ~d column ~d bstate #x~x"
                              (mevent-id mevent*) (mevent-y mevent*) (mevent-x mevent*) (mevent-bstate mevent*)))]
           [else
-            (mvaddstr EVENT_INFO_ROW 1 (format "mouse: unknown event #x~x" (mevent-bstate mevent*)))])
-          (clear-to-row-end EVENT_INFO_ROW)))))
+            (werase event-win)
+            (mvwaddstr event-win 0 0 (format "mouse: unknown event #x~x" (mevent-bstate mevent*)))]
+          )))))
 
 (define show-event-key
   (lambda (event-type keycode)
+    (werase event-win)
     (with-attr (A_REVERSE STYLE_TEXT)
-      (mvaddstr EVENT_INFO_ROW 1 (format "~a pressed: #o~o #d~d #x~x ~s" event-type keycode keycode keycode (key-ref keycode))))
-    (clear-to-row-end EVENT_INFO_ROW)))
+               (mvwaddstr event-win 0 0 (format "~a pressed: #o~o #d~d #x~x ~s" event-type keycode keycode keycode (key-ref keycode))))))
 
 
 ;; getch-now: quickly get the next key, or #f if none.
@@ -266,6 +264,7 @@
             [else
               (show-event-key "key" ch)])
           (refresh)
+          (wrefresh event-win)
           (loop (getch))))))
 
   endwin)
