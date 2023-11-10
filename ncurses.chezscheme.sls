@@ -5,6 +5,8 @@
   (export
    ERR OK
 
+   ncurses-error?
+
    key-symbols key-ref
    KEY_ESCAPE
    KEY_CODE_YES KEY_MIN KEY_BREAK KEY_SRESET KEY_RESET
@@ -129,6 +131,36 @@
   (define NCURSES_VERSION_PATCH 20221231)
   (define NCURSES_MOUSE_VERSION 2)
 
+  (define-ftype errok int)
+
+  ;; Deriving from &error means that (error? ncurses-error) => #t
+  ;; We could use &serious instead so that these exceptions are distinguishable.
+  (define-condition-type &ncurses-error &error make-ncurses-error ncurses-error?)
+
+  ;; ncurses error conditions are like standard &error ones, except &message is optional.
+  ;; Including a continuation condition allows for debugging via the Chez Scheme debugger
+  ;; otherwise we'd get an error message of "the raise continuation is not available".
+  (define ncurses-error
+    (case-lambda
+      [(w)
+       (call/cc
+         (lambda (k)
+           (raise
+             (condition
+               (make-ncurses-error)
+               (make-who-condition w)
+               (make-continuation-condition k)))))]
+      [(w msg . irritants)
+       (call/cc
+         (lambda (k)
+           (raise
+             (condition
+               (make-ncurses-error)
+               (make-who-condition w)
+               (make-message-condition msg)
+               (make-irritants-condition irritants)
+               (make-continuation-condition k)))))]))
+
   (define-syntax auto-ptr
     (syntax-rules ()
       [(_ ((var type) ...) body body* ...)
@@ -139,16 +171,45 @@
            (lambda ()
              (foreign-free (ftype-pointer-address var)) ...)))]))
 
-  (%meta define string-map
-    (lambda (func str)
-      (list->string (map func (string->list str)))))
+  (%meta begin
 
-  (%meta define symbol->curses-name
-    (lambda (sym)
-      (string-map (lambda (c)
-                    (if (eqv? c #\-)
-                        #\_ c))
-                  (symbol->string sym))))
+    ;; #t: generate code that checks 'errok' return and raises exception on ERR.
+    ;; #f: ignore return and assume the caller will check.
+    (define check-errok? #t)
+
+    (define string-map
+      (lambda (func str)
+        (list->string (map func (string->list str)))))
+
+    (define symbol->curses-name
+      (lambda (sym)
+        (string-map (lambda (c)
+                      (if (eqv? c #\-)
+                        #\_
+                        c))
+                    (symbol->string sym))))
+    )
+
+  ;; A lambda wrapper that checks body return code for ERR and raises exception.
+  ;; An extra name arg is used to help distinguish the exception in stack traces.
+  (define-syntax lambda-errok
+    (syntax-rules ()
+      [(_ name args body ...)
+       (lambda args
+         (let ([rc (begin
+                     body ...)])
+           (cond
+             [(fx=? rc ERR)
+              (ncurses-error 'name)]
+             [else
+               rc])))]))
+
+  ;; Plain lambda that ignores the name arg.
+  ;; Use in place of lambda-errok when that check isn't needed.
+  (define-syntax lambda-name
+    (syntax-rules ()
+      [(_ name args body ...)
+       (lambda args body ...)]))
 
   (define-syntax c_funcs
     (lambda (stx)
@@ -160,7 +221,9 @@
             (syntax->datum args))))
       (syntax-case stx ()
         [(_ (name (types ...) return))
-         (has-chtype? #'(types ...))
+         (or (has-chtype? #'(types ...))
+             (and (identifier? #'return)
+                  (eq? 'errok (syntax->datum #'return))))
          ;; For ncurses functions with a chtype argument, generate a calling function
          ;; that allows for those args to take either an int (as ncurses expects), or
          ;; a scheme char object.
@@ -180,16 +243,20 @@
                                         #,a)
                                   a)))
                           (syntax->datum #'(types ...))
-                          (generate-temporaries #'(types ...)))])
+                          (generate-temporaries #'(types ...)))]
+                       [my-lambda
+                         (if (and check-errok? (eq? 'errok (syntax->datum #'return)))
+                           (datum->syntax #'return 'lambda-errok)
+                           (datum->syntax #'return 'lambda-name))])
            #'(define name
                (let ([f (foreign-procedure func-string (types ...) return)])
-                 (lambda (arg ...)
+                 (my-lambda name (arg ...)
                    (f arg->int ...)))))]
         [(_ (name args return))
          #`(define name
              (foreign-procedure #,(symbol->curses-name (syntax->datum #'name)) args return))]
         [(_ f ...)
-         #`(begin
+         #'(begin
              (c_funcs f) ...)])))
 
   (define-syntax c/vars
@@ -470,176 +537,185 @@
     (A_ITALIC		(attr-bits 23)))
 
   (c_funcs
-   ;; curs_initscr
+   ;; curs_initscr(3X)
    (initscr () window*)
-   (endwin () int)
+   (endwin () errok)
 
-   ;; curs_window
+   ;; curs_window(3X)
    (newwin (int int int int) window*)
-   (delwin (window*) int)
-   (mvwin (window* int int) int)
+   (delwin (window*) errok)
+   (mvwin (window* int int) errok)
    (subwin (window* int int int int) window*)
    (derwin (window* int int int int) window*)
-   (mvderwin (window* int int) int)
+   (mvderwin (window* int int) errok)
    (dupwin (window*) window*)
    (wsyncup (window*) void)
-   (syncok (window* boolean) int)
+   (syncok (window* boolean) errok)
    (wcursyncup (window*) void)
    (wsyncdown (window*) void)
 
-   ;; curs_refresh
-   (refresh () int)
-   (wrefresh (window*) int)
-   (wnoutrefresh (window*) int)
-   (doupdate () int)
-   (redrawwin (window*) int)
-   (wredrawln (window* int int) int)
+   ;; curs_refresh(3X)
+   (refresh () errok)
+   (wrefresh (window*) errok)
+   (wnoutrefresh (window*) errok)
+   (doupdate () errok)
+   (redrawwin (window*) errok)
+   (wredrawln (window* int int) errok)
 
-   ;; curs_clear
-   (erase () int)
-   (werase (window*) int)
-   (clear () int)
-   (wclear (window*) int)
-   (clrtobot () int)
-   (wclrtobot (window*) int)
-   (clrtoeol () int)
-   (wclrtoeol (window*) int)
+   ;; curs_clear(3X)
+   (erase () errok)
+   (werase (window*) errok)
+   (clear () errok)
+   (wclear (window*) errok)
+   (clrtobot () errok)
+   (wclrtobot (window*) errok)
+   (clrtoeol () errok)
+   (wclrtoeol (window*) errok)
 
    ;; curs_move(3X)
-   (move (int int) int)
-   (wmove (window* int int) int)
+   (move (int int) errok)
+   (wmove (window* int int) errok)
 
-   ;; curs_addch
-   (addch (chtype) int)
-   (waddch (window* chtype) int)
-   (mvaddch (int int chtype) int)
-   (mvwaddch (window* int int chtype) int)
-   (echochar (chtype) int)
-   (wechochar (window* chtype) int)
+   ;; curs_addch(3X)
+   (addch (chtype) errok)
+   (waddch (window* chtype) errok)
+   (mvaddch (int int chtype) errok)
+   (mvwaddch (window* int int chtype) errok)
+   (echochar (chtype) errok)
+   (wechochar (window* chtype) errok)
 
-   ;; curs_addstr
-   (addstr (string) int)
-   (addnstr (string int) int)
-   (waddstr (window* string) int)
-   (waddnstr (window* string int) int)
-   (mvaddstr (int int string) int)
-   (mvaddnstr (int int string int) int)
-   (mvwaddstr (window* int int string) int)
-   (mvwaddnstr (window* int int string int) int)
+   ;; curs_addstr(3X)
+   (addstr (string) errok)
+   (addnstr (string int) errok)
+   (waddstr (window* string) errok)
+   (waddnstr (window* string int) errok)
+   (mvaddstr (int int string) errok)
+   (mvaddnstr (int int string int) errok)
+   (mvwaddstr (window* int int string) errok)
+   (mvwaddnstr (window* int int string int) errok)
 
-   ;; curs_border
-   (border (chtype chtype chtype chtype chtype chtype chtype chtype) int)
-   (wborder (window* chtype chtype chtype chtype chtype chtype chtype chtype) int)
-   (box (window* chtype chtype) int)
-   (hline (chtype int) int)
-   (whline (window* chtype int) int)
-   (vline (chtype int) int)
-   (wvline (window* chtype int) int)
-   (mvhline (int int chtype int) int)
-   (mvwhline (window* int int chtype int) int)
-   (mvvline (int int chtype int) int)
-   (mvwvline (window* int int chtype int) int)
+   ;; curs_border(3X)
+   (border (chtype chtype chtype chtype chtype chtype chtype chtype) errok)
+   (wborder (window* chtype chtype chtype chtype chtype chtype chtype chtype) errok)
+   (box (window* chtype chtype) errok)
+   (hline (chtype int) errok)
+   (whline (window* chtype int) errok)
+   (vline (chtype int) errok)
+   (wvline (window* chtype int) errok)
+   (mvhline (int int chtype int) errok)
+   (mvwhline (window* int int chtype int) errok)
+   (mvvline (int int chtype int) errok)
+   (mvwvline (window* int int chtype int) errok)
 
-   ;; curs_getch
-   (getch () int)
-   (wgetch (window*) int)
-   (mvgetch (int int) int)
-   (mvwgetch (window* int int) int)
-   (ungetch (int) int)
+   ;; curs_getch(3X)
+   ;; Of these, only ungetch returns OK on success.
+   (getch () errok)
+   (wgetch (window*) errok)
+   (mvgetch (int int) errok)
+   (mvwgetch (window* int int) errok)
+   (ungetch (int) errok)
+   ;; TODO has_key may return ERR before a bool on error..
    (has_key (int) boolean)
 
    ;; curs_get_wch(3X)
+   ;; TODO combine syntax transformers for these?
    (get_wch ((* wint_t)) int)
    (wget_wch (window* (* wint_t)) int)
    (mvget_wch (int int (* wint_t)) int)
    (mvwget_wch (window* int int (* wint_t)) int)
-   (unget-wch (wchar_t) int)
+   (unget-wch (wchar_t) errok)
 
-   ;; curs_inopts
-   (cbreak() int)
-   (nocbreak() int)
-   (echo () int)
-   (noecho () int)
-   (halfdelay (int) int)
-   (intrflush (window* boolean) int)
-   (keypad (window* boolean) int)
-   (meta (window* boolean) int)
-   (nodelay (window* boolean) int)
-   (raw () int)
-   (noraw () int)
+   ;; curs_inopts(3X)
+   (cbreak() errok)
+   (nocbreak() errok)
+   (echo () errok)
+   (noecho () errok)
+   (halfdelay (int) errok)
+   (intrflush (window* boolean) errok)
+   (keypad (window* boolean) errok)
+   (meta (window* boolean) errok)
+   (nodelay (window* boolean) errok)
+   (raw () errok)
+   (noraw () errok)
 
-   ;; curs_color
-   (start-color () int)
+   ;; curs_color(3X)
+   (start-color () errok)
    (has-colors () boolean)
    (can-change-color () boolean)
-   (init-pair (short short short) int)
-   (init-color (short short short short) int)
-   (color-content (short (* short) (* short) (* short)) int)
-   (pair-content (short (* short) (* short)) int)
+   (init-pair (short short short) errok)
+   (init-color (short short short short) errok)
+   (color-content (short (* short) (* short) (* short)) errok)
+   (pair-content (short (* short) (* short)) errok)
    ;; extensions
-   (init-extended-pair (int int int) int)
-   (init-extended-color (int int int int) int)
-   (extended-color-content (short (* short) (* short) (* short)) int)
-   (extended-pair-content (short (* short) (* short)) int)
+   (init-extended-pair (int int int) errok)
+   (init-extended-color (int int int int) errok)
+   (extended-color-content (short (* short) (* short) (* short)) errok)
+   (extended-pair-content (short (* short) (* short)) errok)
    (reset-color-pairs () void)
 
-   ;; curs_attr
-   #;(attr-get ((* attr_t) (* short) void*) int)
+   ;; curs_attr(3X)
+   #;(attr-get ((* attr_t) (* short) void*) errok)
+   ;; wattr_get is complex in that memory address args are used to retrieve values.
+   ;; The wattr-get wrapper will handle errok processing.
    (wattr_get (window* (* attr_t) (* short) (* int)) int)
-   #;(attr-set (attr_t short void*) int)
-   (wattr_set (window* attr_t short (* int)) int)
-   #;(attr_off (attr_t void*) int)
-   #;(wattr_off (window* attr_t void*) int)
-   #;(attr_on (attr_t void*) int)
-   #;(wattr_on (window* attr_t void*) int)
-   #;(attroff (int) int)
-   #;(wattroff (window* int) int)
-   #;(attron (int) int)
-   #;(wattron (window* int) int)
-   #;(attrset (int) int)
-   #;(wattrset (window* int) int)
+   #;(attr-set (attr_t short void*) errok)
+   (wattr_set (window* attr_t short (* int)) errok)
+   #;(attr_off (attr_t void*) errok)
+   #;(wattr_off (window* attr_t void*) errok)
+   #;(attr_on (attr_t void*) errok)
+   #;(wattr_on (window* attr_t void*) errok)
+   #;(attroff (int) errok)
+   #;(wattroff (window* int) errok)
+   #;(attron (int) errok)
+   #;(wattron (window* int) errok)
+   #;(attrset (int) errok)
+   #;(wattrset (window* int) errok)
 
-   (chgat (int attr_t short void*) int)
-   (wchgat (window* int attr_t short void*) int)
-   (mvchgat (int int int attr_t short void*) int)
-   (mvwchgat (window* int int int attr_t short void*) int)
-   (color-set (short void*) int)
-   (wcolor-set (window* short void*) int)
-   (standend () int)
-   (wstandend (window*) int)
-   (standout () int)
-   (wstandout (window*) int)
+   (chgat (int attr_t short void*) errok)
+   (wchgat (window* int attr_t short void*) errok)
+   (mvchgat (int int int attr_t short void*) errok)
+   (mvwchgat (window* int int int attr_t short void*) errok)
+   (color-set (short void*) errok)
+   (wcolor-set (window* short void*) errok)
+   (standend () errok)
+   (wstandend (window*) errok)
+   (standout () errok)
+   (wstandout (window*) errok)
 
-   ;; curs_bkgd
+   ;; curs_bkgd(3X)
    (bkgdset (chtype) void)
    (wbkgdset (window* chtype) void)
-   (bkgd (chtype) int)
-   (wbkgd (window* chtype) int)
+   (bkgd (chtype) errok)
+   (wbkgd (window* chtype) errok)
+   ;; TODO implement this return conversion.
    (getbkgd (window*) chtype)
 
-   ;; curs_beep
-   (beep () int)
-   (flash () int)
+   ;; curs_beep(3X)
+   (beep () errok)
+   (flash () errok)
 
-   ;; curs_termattrs
-   (baudrate () int)
+   ;; curs_termattrs(3X)
+   ;; TODO check longname and termname as they return NULL on error.
+   (baudrate () errok)
    (erasechar () char)
-   (erasewchar ((* wchar_t)) int)
+   (erasewchar ((* wchar_t)) errok)
    (has_ic () boolean)
    (has_il () boolean)
    (killchar () char)
-   (killwchar ((* wchar_t)) int)
+   (killwchar ((* wchar_t)) errok)
    (longname () string)
    (term_attrs () attr_t)
    (termattrs () chtype)
    (termname () string)
 
-   ;; resizeterm
+   ;; resizeterm(3X)
+   ;; TODO manpage says all these return ERR on error, which should include the boolean.
    (is-term-resized (int int) boolean)
-   (resize-term (int int) int)
-   (resizeterm (int int) int)
+   (resize-term (int int) errok)
+   (resizeterm (int int) errok)
 
-   ;; curs_kernel
+   ;; curs_kernel(3X)
+   ;; int return by design: only curs-set potentially returns ERR.
    (def-prog-mode () int)
    (def-shell-mode () int)
    (reset-prog-mode () int)
@@ -650,23 +726,24 @@
    #;(setsyx (int int) void)
    ;; int ripoffline(int line, int (*init)(WINDOW *, int));
    (ripoffline (int void*) int)
-   (curs-set (int) int)
+   (curs-set (int) errok)
    (napms (int) int)
 
-   ;; default_colors
-   (use-default-colors () int)
-   (assume-default-colors (int int) int)
+   ;; default_colors(3X)
+   (use-default-colors () errok)
+   (assume-default-colors (int int) errok)
 
-   ;; curs_legacy
-   (getattrs (window*) int)
-   (getbegx (window*) int)
-   (getbegy (window*) int)
-   (getcurx (window*) int)
-   (getcury (window*) int)
-   (getmaxx (window*) int)
-   (getmaxy (window*) int)
-   (getparx (window*) int)
-   (getpary (window*) int))
+   ;; curs_legacy(3X)
+   (getattrs (window*) errok)
+   (getbegx (window*) errok)
+   (getbegy (window*) errok)
+   (getcurx (window*) errok)
+   (getcury (window*) errok)
+   (getmaxx (window*) errok)
+   (getmaxy (window*) errok)
+   (getparx (window*) errok)
+   (getpary (window*) errok)
+   )
 
   (define-syntax define-wch-func
     (lambda (x)
@@ -682,7 +759,7 @@
                      (cond
                        ;; rc will be OK on regular char or KEY_CODE_YES for a function key.
                        [(fx=? rc ERR)
-                        (error 'name "error" rc)]
+                        (ncurses-error 'name)]
                        [else
                          (ftype-ref wint_t () mem)]))))))])))
   (define-wch-func get-wch)
@@ -721,7 +798,7 @@
             [(= rc OK)
              (values (ftype-ref attr_t () attr) (ftype-ref int () opts))]
             [else
-              (error 'wattr-get "Error" win rc)])))))
+              (ncurses-error 'wattr-get)])))))
 
   (define wattr-set
     (case-lambda
@@ -913,7 +990,8 @@
               [rc
                 (values (ftype-ref int () y*) (ftype-ref int () x*))]
               [else
-                (error 'wmouse-trafo "Error in params or translated points not within window" win y x to-screen?)]))))))
+                (ncurses-error
+                  'wmouse-trafo "Error in params or translated points not within window" win y x to-screen?)]))))))
 
   (define mouse-trafo
     (lambda (y x to-screen?)
@@ -940,3 +1018,5 @@
     (LC_MEASUREMENT	11)
     (LC_IDENTIFICATION	12))
   )
+
+;; vim:lispwords+=auto-ptr,%meta,my-lambda
