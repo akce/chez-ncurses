@@ -268,3 +268,5 @@
           (loop (getch))))))
 
   endwin)
+
+;; vim:lispwords+=with-attr
