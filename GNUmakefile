@@ -40,7 +40,7 @@ INSTALL = /usr/bin/install
 PROJDIR = ncurses
 
 # Source files, shared objects, and whole program optimisations for the library subdirectory.
-SUBSRC = $(addprefix $(PROJDIR)/,common.chezscheme.sls panel.chezscheme.sls)
+SUBSRC = $(addprefix $(PROJDIR)/,common.chezscheme.sls panel.chezscheme.sls util.sls)
 SUBOBJ = $(SUBSRC:.sls=.so)
 SUBWPO = $(SUBSRC:.sls=.wpo)
 
