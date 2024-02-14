@@ -96,13 +96,13 @@
   ;; An extra name arg is used to help distinguish the exception in stack traces.
   (define-syntax lambda-errok
     (syntax-rules ()
-      [(_ name args body ...)
-       (lambda args
+      [(_ name (args ...) body ...)
+       (lambda (args ...)
          (let ([rc (begin
                      body ...)])
            (cond
              [(fx=? rc ERR)
-              (ncurses-error 'name)]
+              (ncurses-error 'name (list args ...))]
              [else
                rc])))]))
 
