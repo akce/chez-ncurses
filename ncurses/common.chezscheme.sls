@@ -1,11 +1,12 @@
-;; Chez Scheme common internal functions.
-;; Written by Jerry 2019-2023.
+;; Chez Scheme ncurses common internal functions.
+;; Written by Jerry 2019-2024.
 ;; SPDX-License-Identifier: Unlicense
 
 (library (ncurses common)
   (export
     ERR OK
     errok
+    window
     window*
     chtype
 
@@ -16,6 +17,7 @@
     enum
     lambda-errok
     lambda-name
+    lambda-nullptr
     symbol->curses-name
     )
   (import
@@ -32,7 +34,8 @@
    (OK	0))
 
   (define-ftype errok int)
-  (define-ftype window* void*)
+  (define-ftype window (struct))
+  (define-ftype window* (* window))
   (define-ftype chtype unsigned)
 
   ;; Deriving from &error means that (error? ncurses-error) => #t
@@ -77,7 +80,16 @@
 
     ;; #t: generate code that checks 'errok' return and raises exception on ERR.
     ;; #f: ignore return and assume the caller will check.
-    (define check-errok? #t)
+    (define check-return? #t)
+
+    (define ftype-ptr-return?
+      (lambda (x)
+        (syntax-case x (*)
+          [(* field)
+           (identifier? #'field)
+           #t]
+          [_
+            #f])))
 
     (define string-map
       (lambda (func str)
@@ -113,6 +125,19 @@
       [(_ name args body ...)
        (lambda args body ...)]))
 
+  ;; Raise ncurses-error on NULL ptr return.
+  (define-syntax lambda-nullptr
+    (syntax-rules ()
+      [(_ name (args ...) body ...)
+       (lambda (args ...)
+         (let ([fptr (begin
+                       body ...)])
+           (cond
+             [(ftype-pointer-null? fptr)
+              (ncurses-error 'name (list args ...))]
+             [else
+               fptr])))]))
+
   (define-syntax c_funcs
     (lambda (stx)
       (define has-chtype?
@@ -125,7 +150,8 @@
         [(_ (name (types ...) return))
          (or (has-chtype? #'(types ...))
              (and (identifier? #'return)
-                  (eq? 'errok (syntax->datum #'return))))
+                  (eq? 'errok (syntax->datum #'return)))
+             (ftype-ptr-return? #'return))
          ;; For ncurses functions with a chtype argument, generate a calling function
          ;; that allows for those args to take either an int (as ncurses expects), or
          ;; a scheme char object.
@@ -147,9 +173,15 @@
                           (syntax->datum #'(types ...))
                           (generate-temporaries #'(types ...)))]
                        [my-lambda
-                         (if (and check-errok? (eq? 'errok (syntax->datum #'return)))
-                           (datum->syntax #'return 'lambda-errok)
-                           (datum->syntax #'return 'lambda-name))])
+                         (cond
+                           [(and check-return?
+                                 (ftype-ptr-return? #'return))
+                            (datum->syntax #'name 'lambda-nullptr)]
+                           [(and check-return?
+                                 (eq? 'errok (syntax->datum #'return)))
+                            (datum->syntax #'return 'lambda-errok)]
+                           [else
+                             (datum->syntax #'return 'lambda-name)])])
            #'(define name
                (let ([f (foreign-procedure func-string (types ...) return)])
                  (my-lambda name (arg ...)

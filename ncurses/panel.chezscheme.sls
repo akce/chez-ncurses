@@ -30,14 +30,14 @@
   (define-ftype panel (struct))
 
   (c_funcs
-    [new-panel (window*) (* panel)]
+    [new-panel ((* window)) (* panel)]
     [bottom-panel ((* panel)) errok]
     [top-panel ((* panel)) errok]
     [show-panel ((* panel)) errok]
     [update-panels () void]
     [hide-panel ((* panel)) errok]
-    [panel-window ((* panel)) window*]
-    [replace-panel ((* panel) window*) errok]
+    [panel-window ((* panel)) (* window)]
+    [replace-panel ((* panel) (* window)) errok]
     [move-panel ((* panel) int int) errok]
     ;; TODO this should check for ERR before converting to bool.
     [panel-hidden ((* panel)) boolean]

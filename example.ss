@@ -10,12 +10,12 @@
 ;; chez-ncurses is only a thin wrapper around the ncurses library so it should be possible
 ;; to learn how this app works by using the ncurses man pages.
 
-;; Written by Jerry 2019-2020,2023.
+;; Written by Jerry 2019-2024.
 ;; SPDX-License-Identifier: Unlicense
 
 (import
  (rnrs)
- (only (chezscheme) format logtest)
+ (only (chezscheme) format ftype-pointer=? logtest)
  (ncurses))
 
 (define event-win #f)
@@ -44,7 +44,7 @@
     (let ([win (initscr)])
       ;; Storing `win` here is not needed, it's only done to show that `initscr` will
       ;; initialise `stdscr` as a side-effect.
-      (assert (eq? win stdscr)))
+      (assert (ftype-pointer=? win stdscr)))
 
     ;; Turn on keypad so that KEY_RESIZE events are sent.
     ;; See curs_initscr(3X)
