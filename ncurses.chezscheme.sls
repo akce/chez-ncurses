@@ -199,7 +199,7 @@
          (define col val) ...)]))
 
   (define library-init
-    (load-shared-object "libncursesw.so.6"))
+    (load-shared-object "libncurses.so.6.4"))
 
   (define-ftype window* void*)
   (define-ftype chtype unsigned)
