@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Unlicense
 
 # Path to chez scheme executable.
-SCHEME = /usr/bin/chez-scheme
+SCHEME = chez-scheme
 
 # Install destination directory. This should be an object directory contained in (library-directories).
 # eg, set in CHEZSCHEMELIBDIRS environment variable.
@@ -55,7 +55,7 @@ $(TOPWPO): $(TOPSRC)
 	echo '(reset-handler abort) (compile-imported-libraries #t) (generate-wpo-files #t) (library-directories ".") (compile-library "$(TOPSRC)")' | $(SCHEME) $(SFLAGS)
 
 $(LIBDIR)/%: %
-	$(INSTALL) -p -D "$<" "$@"
+	$(INSTALL) -pv "$<" $(LIBDIR)
 
 build: $(TOPWPO)
 
