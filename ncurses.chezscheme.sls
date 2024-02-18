@@ -198,8 +198,20 @@
        (begin
          (define col val) ...)]))
 
+  (define shared-object-name
+    (case (machine-type)
+      ((i3osx ti3osx)    (error 'shared-object-name "help wanted to determine ncurses library on macOS")) ; macOS x86
+      ((a6osx ta6osx)    (error 'shared-object-name "help wanted to determine ncurses library name on macOS")); macOS x86_64
+      ((i3nt ti3nt)      (error 'shared-object-name "help wanted to determine ncurses DLL name on Windows")); Windows x86
+      ((a6nt ta6nt)      (error 'shared-object-name "help wanted to determine ncurses DLL name on Windws")); Windows x86_64
+      ((i3le ti3le)      "libncursesw.so.6") ; Linux x86
+      ((a6le ta6le)      "libncursesw.so.6") ; Linux x86_64
+      ((i3fb ti3fb)      "libncurses.so.6.4") ; FreeBSD x86
+      ((a6fb ta6fb)      "libncurses.so.6.4") ; FreeBSD x86_64
+      (else (error 'shared-object-name "machine type not recognised"))))
+
   (define library-init
-    (load-shared-object "libncurses.so.6.4"))
+    (load-shared-object shared-object-name))
 
   (define-ftype window* void*)
   (define-ftype chtype unsigned)
