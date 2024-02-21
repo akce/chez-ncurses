@@ -414,7 +414,7 @@
    (mvderwin ((* window) int int) errok)
    (dupwin ((* window)) (* window))
    (wsyncup ((* window)) void)
-   (syncok ((* window) boolean) errok)
+   (syncok ((* window) bool) errok)
    (wcursyncup ((* window)) void)
    (wsyncdown ((* window)) void)
 
@@ -478,8 +478,7 @@
    (mvgetch (int int) errok)
    (mvwgetch ((* window) int int) errok)
    (ungetch (int) errok)
-   ;; TODO has_key may return ERR before a bool on error..
-   (has_key (int) boolean)
+   (has_key (int) bool)
 
    ;; curs_get_wch(3X)
    ;; TODO combine syntax transformers for these?
@@ -495,17 +494,17 @@
    (echo () errok)
    (noecho () errok)
    (halfdelay (int) errok)
-   (intrflush ((* window) boolean) errok)
-   (keypad ((* window) boolean) errok)
-   (meta ((* window) boolean) errok)
-   (nodelay ((* window) boolean) errok)
+   (intrflush ((* window) bool) errok)
+   (keypad ((* window) bool) errok)
+   (meta ((* window) bool) errok)
+   (nodelay ((* window) bool) errok)
    (raw () errok)
    (noraw () errok)
 
    ;; curs_color(3X)
    (start-color () errok)
-   (has-colors () boolean)
-   (can-change-color () boolean)
+   (has-colors () bool)
+   (can-change-color () bool)
    (init-pair (short short short) errok)
    (init-color (short short short short) errok)
    (color-content (short (* short) (* short) (* short)) errok)
@@ -563,8 +562,8 @@
    (baudrate () errok)
    (erasechar () char)
    (erasewchar ((* wchar_t)) errok)
-   (has_ic () boolean)
-   (has_il () boolean)
+   (has_ic () bool)
+   (has_il () bool)
    (killchar () char)
    (killwchar ((* wchar_t)) errok)
    (longname () string)
@@ -573,8 +572,7 @@
    (termname () string)
 
    ;; resizeterm(3X)
-   ;; TODO manpage says all these return ERR on error, which should include the boolean.
-   (is-term-resized (int int) boolean)
+   (is-term-resized (int int) bool)
    (resize-term (int int) errok)
    (resizeterm (int int) errok)
 
@@ -834,24 +832,24 @@
               (foreign-free (ftype-pointer-address m*))))))))
 
   (c_funcs
-    (has-mouse () boolean)
+    (has-mouse () bool)
     (ungetmouse ((* mevent)) int)
     ;; Should i case-lambda `mouseinterval` so no args is the query (-1) version?
     (mouseinterval (int) int)
-    (wenclose ((* window) int int) boolean)
+    (wenclose ((* window) int int) bool)
     )
 
   ;; Throws an exception rather than return an error code as this function returns `values` on success.
   (define wmouse-trafo
-    (let ([c/func (foreign-procedure "wmouse_trafo" ((* window) (* int) (* int) boolean) boolean)])
+    (let ([c/func (foreign-procedure "wmouse_trafo" ((* window) (* int) (* int) bool) bool)])
       (lambda (win y x to-screen?)
         (auto-ptr ([x* int]
                    [y* int])
           (ftype-set! int () y* y)
           (ftype-set! int () x* x)
-          (let ([rc (c/func win y* x* to-screen?)])
+          (let ([rc (c/func win y* x* (if to-screen? 1 0))])
             (cond
-              [rc
+              [(fx=? rc 1)
                 (values (ftype-ref int () y*) (ftype-ref int () x*))]
               [else
                 (ncurses-error

@@ -5,6 +5,7 @@
 (library (ncurses common)
   (export
     ERR OK
+    bool
     errok
     window
     window*
@@ -15,6 +16,7 @@
     auto-ptr
     c_funcs
     enum
+    lambda-bool
     lambda-errok
     lambda-name
     lambda-nullptr
@@ -32,6 +34,14 @@
   (enum
    (ERR	-1)
    (OK	0))
+
+  ;; bool is modelled on NCURSES_BOOL from ncurses.h.
+  ;; It could be an uchar, a stdbool, or c++'s bool.
+  ;; This is a pain because stdbool/_Bool is compiler dependant and explicitly not
+  ;; defined for an ABI.
+  ;; So far, i've seen only u8 used by: clang, gcc.
+  ;; Use c_funcs to auto cast bool args and returns.
+  (define-ftype bool unsigned-8)
 
   (define-ftype errok int)
   (define-ftype window (struct))
@@ -104,6 +114,20 @@
                     (symbol->string sym))))
     )
 
+  (define-syntax lambda-bool
+    (syntax-rules ()
+      [(_ name (args ...) body ...)
+       (lambda (args ...)
+         (let ([rc (begin
+                     body ...)])
+           (cond
+             [(fx=? rc 1)
+              #t]
+             [(fx=? rc 0)
+              #f]
+             [else
+               (ncurses-error 'name (list args ...))])))]))
+
   ;; A lambda wrapper that checks body return code for ERR and raises exception.
   ;; An extra name arg is used to help distinguish the exception in stack traces.
   (define-syntax lambda-errok
@@ -140,17 +164,23 @@
 
   (define-syntax c_funcs
     (lambda (stx)
-      (define has-chtype?
+      (define has-custom-type?
         (lambda (args)
           (find
             (lambda (x)
-              (eq? 'chtype x))
+              (case x
+                [(bool chtype)
+                 #t]
+                [else
+                  #f]))
             (syntax->datum args))))
       (syntax-case stx ()
         [(_ (name (types ...) return))
-         (or (has-chtype? #'(types ...))
+         (or (has-custom-type? #'(types ...))
              (and (identifier? #'return)
                   (eq? 'errok (syntax->datum #'return)))
+             (and (identifier? #'return)
+                  (eq? 'bool (syntax->datum #'return)))
              (ftype-ptr-return? #'return))
          ;; For ncurses functions with a chtype argument, generate a calling function
          ;; that allows for those args to take either an int (as ncurses expects), or
@@ -163,13 +193,17 @@
                           (lambda (t a)
                             (list
                               a
-                              (if (eq? 'chtype t)
-                                  ;; 'a' is already a syntax object, so it needs to be
-                                  ;; inserted into the return code syntax object as is.
-                                  #`(if (char? #,a)
-                                        (char->integer #,a)
-                                        #,a)
-                                  a)))
+                              (case t
+                                [(bool)
+                                 #`(if #,a 1 0)]
+                                [(chtype)
+                                 ;; 'a' is already a syntax object, so it needs to be
+                                 ;; inserted into the return code syntax object as is.
+                                 #`(if (char? #,a)
+                                     (char->integer #,a)
+                                     #,a)]
+                                [else
+                                 a])))
                           (syntax->datum #'(types ...))
                           (generate-temporaries #'(types ...)))]
                        [my-lambda
@@ -180,6 +214,8 @@
                            [(and check-return?
                                  (eq? 'errok (syntax->datum #'return)))
                             (datum->syntax #'return 'lambda-errok)]
+                           [(eq? 'bool (syntax->datum #'return))
+                            (datum->syntax #'return 'lambda-bool)]
                            [else
                              (datum->syntax #'return 'lambda-name)])])
            #'(define name
