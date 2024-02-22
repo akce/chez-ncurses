@@ -1,9 +1,15 @@
 # chez-ncurses GNUmakefile.
-# Written by Jerry 2019-2023.
+# Written by Jerry 2019-2024.
 # SPDX-License-Identifier: Unlicense
 
 # Path to chez scheme executable.
-SCHEME = /usr/bin/chez-scheme
+OS = $(shell uname)
+ifeq ($(OS),FreeBSD)
+	# FreeBSD pkg installs to /usr/local
+	SCHEME = /usr/local/bin/chez-scheme
+else
+	SCHEME = /usr/bin/chez-scheme
+endif
 SCHEMEVERSION = $(shell $(SCHEME) --version 2>&1)
 
 # Install destination directory. This should be an object directory contained in (library-directories).
@@ -106,8 +112,10 @@ $(BUILDDIR)/%.wpo: %.sls
 		'(import ($(PROJDIR)))'			\
 		| $(SCHEME) $(SFLAGS)
 
+# Creating the dest dir first works for both BSD and GNU install.
 $(LIBDIR)/%: %
-	$(INSTALL) -m u=rw,go=r,a-s -p -D "$<" "$@"
+	@$(INSTALL) -d "$(dir $@)"
+	$(INSTALL) -m u=rw,go=r,a-s -p "$<" "$@"
 
 build: $(BTOPWPO) $(BSUBWPO)
 
