@@ -1,5 +1,5 @@
 ;; chez scheme bindings for ncurses.
-;; Written by Jerry 2019-2021,2023.
+;; Written by Jerry 2019-2024.
 ;; SPDX-License-Identifier: Unlicense
 (library (ncurses)
   (export
@@ -125,8 +125,41 @@
     (rename (chezscheme) (box %box) (meta %meta))
     (ncurses common))
 
+  ;; Load ncurses from a few places.
+  ;; [return] #f (for ncurses linked to chez-scheme) or name of loaded library, error exception on failure.
+  ;;
+  ;; Default load order is:
+  ;; - ncurses linked to Chez Scheme binary (in any),
+  ;; - libncursesw.so.6 (ncurses built with --enable-widec)
+  ;; - libncurses.so.6 (this could include wide chars if --enable-widec --disable-lib-suffixes)
+  ;;
+  ;; ncurses is a little special in that it's an optional dependency of Chez Scheme itself and
+  ;; used by it for the expression editor. Therefore, it's highly unlikely not to be linked in.
+  ;; So for those special cases where it's not linked, fall back to the standard libnames.
+  ;;
+  ;; TODO provide a method to override based on makefile or config file?
   (define library-init
-    (load-shared-object "libncursesw.so.6"))
+    (let ([lib-order
+            '(
+              #f			; load ncurses linked to scheme binary (if any).
+              "libncursesw.so.6"
+              "libncurses.so.6"
+              )])
+      (let loop ([libs lib-order])
+        (cond
+          [(null? libs)
+           (errorf 'ncurses-library-load "Failed to load from: ~s" lib-order)]
+          [(and
+             (guard
+               (e [else #f])
+               (load-shared-object (car libs))
+               #t)
+             ;; This foreign-entry? check is only useful for the #f (internal) case,
+             ;; but it's harmless to do for each lib.
+             (foreign-entry? "initscr"))
+             (car libs)]
+          [else
+            (loop (cdr libs))]))))
 
   ;; Track the last version of ncurses.h that these bindings match.
   ;; It's not public or used in any way, it's only informational; update with changes.
