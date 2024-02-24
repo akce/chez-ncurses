@@ -177,7 +177,7 @@
   (lambda (event-type keycode)
     (werase event-win)
     (with-attr (A_REVERSE STYLE_TEXT)
-               (mvwaddstr event-win 0 0 (format "~a pressed: #o~o #d~d #x~x ~s" event-type keycode keycode keycode (key-ref keycode))))))
+               (mvwaddstr event-win 0 0 (format "~a pressed: #o~o #d~d #x~x ~s" event-type keycode keycode keycode (key-symchar keycode))))))
 
 
 ;; getch-now: quickly get the next key, or #f if none.
@@ -241,12 +241,12 @@
     (call/cc
       (lambda (break)
         (let loop ([ch (getch)])
-          (case (key-ref ch)
+          (case (key-symchar ch)
             [(KEY_ESCAPE)
              (cond
                [(getch-now)
                 => (lambda (key)
-                     (case (key-ref key)
+                     (case (key-symchar key)
                        [(#\q)
                         ;; ALT-q exits the loop.
                         (break)]

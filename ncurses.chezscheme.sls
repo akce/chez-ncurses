@@ -7,7 +7,7 @@
 
    ncurses-error?
 
-   key-symbols key-ref
+   key-ncint key-symchar
    KEY_ESCAPE
    KEY_CODE_YES KEY_MIN KEY_BREAK KEY_SRESET KEY_RESET
    KEY_DOWN KEY_UP KEY_LEFT KEY_RIGHT KEY_HOME KEY_BACKSPACE KEY_F0 KEY_DL KEY_IL KEY_DC KEY_IC KEY_EIC KEY_CLEAR KEY_EOS KEY_EOL KEY_SF KEY_SR KEY_NPAGE KEY_PPAGE KEY_STAB KEY_CTAB KEY_CATAB KEY_ENTER KEY_PRINT KEY_LL KEY_A1 KEY_A3 KEY_B2 KEY_C1 KEY_C3 KEY_BTAB KEY_BEG KEY_CANCEL KEY_CLOSE KEY_COMMAND KEY_COPY KEY_CREATE KEY_END KEY_EXIT KEY_FIND KEY_HELP KEY_MARK KEY_MESSAGE KEY_MOVE KEY_NEXT KEY_OPEN KEY_OPTIONS KEY_PREVIOUS KEY_REDO KEY_REFERENCE KEY_REFRESH KEY_REPLACE KEY_RESTART KEY_RESUME KEY_SAVE KEY_SBEG KEY_SCANCEL KEY_SCOMMAND KEY_SCOPY KEY_SCREATE KEY_SDC KEY_SDL KEY_SELECT KEY_SEND KEY_SEOL KEY_SEXIT KEY_SFIND KEY_SHELP KEY_SHOME KEY_SIC KEY_SLEFT KEY_SMESSAGE KEY_SMOVE KEY_SNEXT KEY_SOPTIONS KEY_SPREVIOUS KEY_SPRINT KEY_SREDO KEY_SREPLACE KEY_SRIGHT KEY_SRSUME KEY_SSAVE KEY_SSUSPEND KEY_SUNDO KEY_SUSPEND KEY_UNDO KEY_MOUSE KEY_RESIZE
@@ -251,130 +251,160 @@
   (define-syntax define-keys
     (lambda (x)
       (syntax-case x ()
-        [(_ (key-table key-getter) (name value) ...)
+        [(_ (ncint-getter keysymchar-getter)
+            (name value) ...)
          #'(begin
-             (define key-table
-               (let ([ht (make-eqv-hashtable)])
-                 (hashtable-set! ht value 'name) ...
+             (define-values
+               (ncint-table keysymchar-table)
+               (let ([key-ht (make-eq-hashtable)]
+                     [sym-ht (make-eqv-hashtable)]
+                     [KEY_F0 #o410])
+                 (hashtable-set! key-ht 'name value) ...
+                 (hashtable-set! sym-ht value 'name) ...
                  ;; Expand and add function keys. There's room for 64.
                  (do
                    ([i 1 (fx+ i 1)])
-                   [(fx>? i 64) ht]
-                   (hashtable-set! ht (fx+ #;KEY_F0 #o410 i)
-                     (string->symbol (format #;"KEY_F~2,'0d" "KEY_F~d" i))))))
-             (define key-getter
-               (lambda (key-num)
+                   [(fx>? i 64) (values key-ht sym-ht)]
+                   (let ([k (string->symbol (string-append "KEY_F" (number->string i)))]
+                         [v (fx+ KEY_F0 i)])
+                     (hashtable-set! key-ht k v)
+                     (hashtable-set! sym-ht v k)))))
+             (define ncint-getter
+               (lambda (charsym)
                  (cond
-                   [(hashtable-ref key-table key-num #f)
+                   [(hashtable-ref ncint-table charsym #f)
+                    => values]
+                   [(char? charsym)
+                    (char->integer charsym)]
+                   [else
+                     (error 'ncint-getter "Unknown ncurses KEY_ symbol or invalid input" charsym)])))
+             (define keysymchar-getter
+               (lambda (key-num)
+                 ;; hashtable-ref is a procedure so doing this way saves an integer->char
+                 ;; conversion if we were to put integer->char in the hashtable-ref call
+                 ;; for cases where key-num is in the hashtable.
+                 (cond
+                   [(hashtable-ref keysymchar-table key-num #f)
                     => values]
                    [else
+                     ;; Should we cache the converted char?
                      (integer->char key-num)])))
-             ;; Keep these defines for backwards compat.
-             (define name value) ...)])))
+             ;; Using tables and symbols is a serious break in the API, alert
+             ;; anyone who's still using the previous method to update their code.
+             ;; TODO remove this after a half year or so, eg. end of 2024.
+             (define-syntax name
+               (identifier-syntax
+                 (errorf 'name "chez-ncurses key handing has changed. Use (~s '~s) instead." 'ncint-getter 'name))) ...)])))
 
-  (define-keys (key-symbols key-ref)
-   ;; KEY_ESCAPE is a chez-ncurses addition.
-   ;; It's here because it's useful to detect ALT key combos.
-   ;; TODO Add the rest of the ASCII control chars?
-   ;; NOTE ASCII form-feed (^L) is #\page in Chez Scheme.
-   ;; TODO rename KEY_ESCAPE to ASCII_ESCAPE? Or drop prefix altogether?
-   (KEY_ESCAPE      #o033)
+  ;; key-ncint KEY_SYMBOL | Scheme Char -> NCurses KEY INT
+  ;; key-symchar NCurses KEY INT -> KEY_SYMBOL | Scheme Char
+  ;;
+  ;; Creates two functions, one to convert ncurses key integer values (as returned by
+  ;; getch and get-wch) to KEY_SYMBOL or Scheme Character types. The other performs this
+  ;; operation in reverse and is handy for ungetch.
+  (define-keys (key-ncint key-symchar)
+    ;; KEY_ESCAPE is a chez-ncurses addition.
+    ;; It's here because it's useful to detect ALT key combos.
+    ;; TODO Add the rest of the ASCII control chars?
+    ;; NOTE ASCII form-feed (^L) is #\page in Chez Scheme.
+    ;; TODO rename KEY_ESCAPE to ASCII_ESCAPE? Or drop prefix altogether?
+    (KEY_ESCAPE      #o033)
 
-   (KEY_CODE_YES    #o400)
-   (KEY_MIN         #o401)
-   (KEY_BREAK       #o401)
-   (KEY_SRESET      #o530)
-   (KEY_RESET       #o531)
+    (KEY_CODE_YES    #o400)
+    (KEY_MIN         #o401)
+    (KEY_BREAK       #o401)
+    (KEY_SRESET      #o530)
+    (KEY_RESET       #o531)
 
-   (KEY_DOWN        #o402)
-   (KEY_UP          #o403)
-   (KEY_LEFT        #o404)
-   (KEY_RIGHT       #o405)
-   (KEY_HOME        #o406)
-   (KEY_BACKSPACE   #o407)
-   (KEY_F0          #o410)
-   (KEY_DL          #o510)
-   (KEY_IL          #o511)
-   (KEY_DC          #o512)
-   (KEY_IC          #o513)
-   (KEY_EIC         #o514)
-   (KEY_CLEAR       #o515)
-   (KEY_EOS         #o516)
-   (KEY_EOL         #o517)
-   (KEY_SF          #o520)
-   (KEY_SR          #o521)
-   (KEY_NPAGE       #o522)
-   (KEY_PPAGE       #o523)
-   (KEY_STAB        #o524)
-   (KEY_CTAB        #o525)
-   (KEY_CATAB       #o526)
-   (KEY_ENTER       #o527)
-   (KEY_PRINT       #o532)
-   (KEY_LL          #o533)
-   (KEY_A1          #o534)
-   (KEY_A3          #o535)
-   (KEY_B2          #o536)
-   (KEY_C1          #o537)
-   (KEY_C3          #o540)
-   (KEY_BTAB        #o541)
-   (KEY_BEG         #o542)
-   (KEY_CANCEL      #o543)
-   (KEY_CLOSE       #o544)
-   (KEY_COMMAND     #o545)
-   (KEY_COPY        #o546)
-   (KEY_CREATE      #o547)
-   (KEY_END         #o550)
-   (KEY_EXIT        #o551)
-   (KEY_FIND        #o552)
-   (KEY_HELP        #o553)
-   (KEY_MARK        #o554)
-   (KEY_MESSAGE     #o555)
-   (KEY_MOVE        #o556)
-   (KEY_NEXT        #o557)
-   (KEY_OPEN        #o560)
-   (KEY_OPTIONS     #o561)
-   (KEY_PREVIOUS    #o562)
-   (KEY_REDO        #o563)
-   (KEY_REFERENCE   #o564)
-   (KEY_REFRESH     #o565)
-   (KEY_REPLACE     #o566)
-   (KEY_RESTART     #o567)
-   (KEY_RESUME      #o570)
-   (KEY_SAVE        #o571)
-   (KEY_SBEG        #o572)
-   (KEY_SCANCEL     #o573)
-   (KEY_SCOMMAND    #o574)
-   (KEY_SCOPY       #o575)
-   (KEY_SCREATE     #o576)
-   (KEY_SDC         #o577)
-   (KEY_SDL         #o600)
-   (KEY_SELECT      #o601)
-   (KEY_SEND        #o602)
-   (KEY_SEOL        #o603)
-   (KEY_SEXIT       #o604)
-   (KEY_SFIND       #o605)
-   (KEY_SHELP       #o606)
-   (KEY_SHOME       #o607)
-   (KEY_SIC         #o610)
-   (KEY_SLEFT       #o611)
-   (KEY_SMESSAGE    #o612)
-   (KEY_SMOVE       #o613)
-   (KEY_SNEXT       #o614)
-   (KEY_SOPTIONS    #o615)
-   (KEY_SPREVIOUS   #o616)
-   (KEY_SPRINT      #o617)
-   (KEY_SREDO       #o620)
-   (KEY_SREPLACE    #o621)
-   (KEY_SRIGHT      #o622)
-   (KEY_SRSUME      #o623)
-   (KEY_SSAVE       #o624)
-   (KEY_SSUSPEND    #o625)
-   (KEY_SUNDO       #o626)
-   (KEY_SUSPEND     #o627)
-   (KEY_UNDO        #o630)
-   (KEY_MOUSE       #o631)
-   (KEY_RESIZE      #o632)
-   )
+    (KEY_DOWN        #o402)
+    (KEY_UP          #o403)
+    (KEY_LEFT        #o404)
+    (KEY_RIGHT       #o405)
+    (KEY_HOME        #o406)
+    (KEY_BACKSPACE   #o407)
+    (KEY_F0          #o410)
+    (KEY_DL          #o510)
+    (KEY_IL          #o511)
+    (KEY_DC          #o512)
+    (KEY_IC          #o513)
+    (KEY_EIC         #o514)
+    (KEY_CLEAR       #o515)
+    (KEY_EOS         #o516)
+    (KEY_EOL         #o517)
+    (KEY_SF          #o520)
+    (KEY_SR          #o521)
+    (KEY_NPAGE       #o522)
+    (KEY_PPAGE       #o523)
+    (KEY_STAB        #o524)
+    (KEY_CTAB        #o525)
+    (KEY_CATAB       #o526)
+    (KEY_ENTER       #o527)
+    (KEY_PRINT       #o532)
+    (KEY_LL          #o533)
+    (KEY_A1          #o534)
+    (KEY_A3          #o535)
+    (KEY_B2          #o536)
+    (KEY_C1          #o537)
+    (KEY_C3          #o540)
+    (KEY_BTAB        #o541)
+    (KEY_BEG         #o542)
+    (KEY_CANCEL      #o543)
+    (KEY_CLOSE       #o544)
+    (KEY_COMMAND     #o545)
+    (KEY_COPY        #o546)
+    (KEY_CREATE      #o547)
+    (KEY_END         #o550)
+    (KEY_EXIT        #o551)
+    (KEY_FIND        #o552)
+    (KEY_HELP        #o553)
+    (KEY_MARK        #o554)
+    (KEY_MESSAGE     #o555)
+    (KEY_MOVE        #o556)
+    (KEY_NEXT        #o557)
+    (KEY_OPEN        #o560)
+    (KEY_OPTIONS     #o561)
+    (KEY_PREVIOUS    #o562)
+    (KEY_REDO        #o563)
+    (KEY_REFERENCE   #o564)
+    (KEY_REFRESH     #o565)
+    (KEY_REPLACE     #o566)
+    (KEY_RESTART     #o567)
+    (KEY_RESUME      #o570)
+    (KEY_SAVE        #o571)
+    (KEY_SBEG        #o572)
+    (KEY_SCANCEL     #o573)
+    (KEY_SCOMMAND    #o574)
+    (KEY_SCOPY       #o575)
+    (KEY_SCREATE     #o576)
+    (KEY_SDC         #o577)
+    (KEY_SDL         #o600)
+    (KEY_SELECT      #o601)
+    (KEY_SEND        #o602)
+    (KEY_SEOL        #o603)
+    (KEY_SEXIT       #o604)
+    (KEY_SFIND       #o605)
+    (KEY_SHELP       #o606)
+    (KEY_SHOME       #o607)
+    (KEY_SIC         #o610)
+    (KEY_SLEFT       #o611)
+    (KEY_SMESSAGE    #o612)
+    (KEY_SMOVE       #o613)
+    (KEY_SNEXT       #o614)
+    (KEY_SOPTIONS    #o615)
+    (KEY_SPREVIOUS   #o616)
+    (KEY_SPRINT      #o617)
+    (KEY_SREDO       #o620)
+    (KEY_SREPLACE    #o621)
+    (KEY_SRIGHT      #o622)
+    (KEY_SRSUME      #o623)
+    (KEY_SSAVE       #o624)
+    (KEY_SSUSPEND    #o625)
+    (KEY_SUNDO       #o626)
+    (KEY_SUSPEND     #o627)
+    (KEY_UNDO        #o630)
+    (KEY_MOUSE       #o631)
+    (KEY_RESIZE      #o632)
+    )
 
   ;; Internal ncurses.h definition not in getch(3).
   (define KEY_MAX #o777)

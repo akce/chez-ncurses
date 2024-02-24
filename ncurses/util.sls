@@ -60,7 +60,7 @@
 
   (define get-key-combo
     (lambda ()
-      (define key-a (key-ref (getch)))
+      (define key-a (key-symchar (getch)))
       (case key-a
         [(KEY_ESCAPE)
          (cond
