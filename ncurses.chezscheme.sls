@@ -739,23 +739,23 @@
 
   (define attr-off
     (lambda (attr)
+      ;; opts are unused.
       (wattr-off stdscr attr)))
 
   (define wattr-off
     (lambda (win attr)
-      (auto-ptr ([mem int])
-        (ftype-set! int () mem attr)
-        (wattr_off win 0 attr))))
+      ;; opts are unused.
+      (wattr_off win attr 0)))
 
   (define attr-on
     (lambda (attr)
+      ;; opts are unused.
       (wattr-on stdscr attr)))
 
   (define wattr-on
     (lambda (win attr)
-      (auto-ptr ([mem int])
-        (ftype-set! int () mem attr)
-        (wattr_on win 0 attr))))
+      ;; opts are unused.
+      (wattr_on win attr 0)))
 
   ;; curs_terminfo(3X)
   (define tigetflag
