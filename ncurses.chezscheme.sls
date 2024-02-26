@@ -64,9 +64,9 @@
    init-extended-pair init-extended-color extended-color-content extended-pair-content reset-color-pairs
 
    ;; curs_attr(3X)
-   #;attr-get wattr-get #;attr-set wattr-set #;attr-off #;wattr-off #;attr-on #;wattr-on
-   ;; Remove legacy setters, use underscored versions instead.
-   ;;attroff wattroff attron wattron attrset wattrset
+   attr-get wattr-get attr-set wattr-set attr-off wattr-off attr-on wattr-on
+   ;; These are legacy setters (as per the manpage), prefer the hyphenated versions..
+   attroff wattroff attron wattron attrset wattrset
 
    chgat wchgat mvchgat mvwchgat color-set wcolor-set standend wstandend standout wstandout
    A_NORMAL A_STANDOUT A_UNDERLINE A_REVERSE A_BLINK A_DIM A_BOLD A_ALTCHARSET
@@ -577,22 +577,21 @@
    (reset-color-pairs () void)
 
    ;; curs_attr(3X)
-   #;(attr-get ((* attr_t) (* short) void*) errok)
-   ;; wattr_get is complex in that memory address args are used to retrieve values.
-   ;; The wattr-get wrapper will handle errok processing.
-   (wattr_get ((* window) (* attr_t) (* short) (* int)) int)
-   #;(attr-set (attr_t short void*) errok)
+   ;; Hyphenated attr get functions are complex in that values are written to memory.
+   #;(attr_get ((* attr_t) (* short) void*) errok)
+   (wattr_get ((* window) (* attr_t) (* short) (* int)) errok)
+   #;(attr_set (attr_t short void*) errok)
    (wattr_set ((* window) attr_t short (* int)) errok)
    #;(attr_off (attr_t void*) errok)
-   #;(wattr_off ((* window) attr_t void*) errok)
+   (wattr_off ((* window) attr_t void*) errok)
    #;(attr_on (attr_t void*) errok)
-   #;(wattr_on ((* window) attr_t void*) errok)
-   #;(attroff (int) errok)
-   #;(wattroff ((* window) int) errok)
-   #;(attron (int) errok)
-   #;(wattron ((* window) int) errok)
-   #;(attrset (int) errok)
-   #;(wattrset ((* window) int) errok)
+   (wattr_on ((* window) attr_t void*) errok)
+   (attroff (int) errok)
+   (wattroff ((* window) int) errok)
+   (attron (int) errok)
+   (wattron ((* window) int) errok)
+   (attrset (int) errok)
+   (wattrset ((* window) int) errok)
 
    (chgat (int attr_t short void*) errok)
    (wchgat ((* window) int attr_t short void*) errok)
@@ -711,16 +710,23 @@
   ;; `opt` is used for extended colours and is used in this API as `pair` is the same
   ;; colour value except truncated to short.
 
+  (define attr-get
+    (lambda ()
+      (wattr-get stdscr)))
+
   (define wattr-get
     (lambda (win)
       (auto-ptr ([attr attr_t]
                  [opts int])
-        (let ([rc (wattr_get win attr (make-ftype-pointer short 0) opts)])
-          (cond
-            [(= rc OK)
-             (values (ftype-ref attr_t () attr) (ftype-ref int () opts))]
-            [else
-              (ncurses-error 'wattr-get)])))))
+        (wattr_get win attr (make-ftype-pointer short 0) opts)
+        (values (ftype-ref attr_t () attr) (ftype-ref int () opts)))))
+
+  (define attr-set
+    (case-lambda
+      [(attr)
+       (wattr-set stdscr attr)]
+      [(attr opts)
+       (wattr-set stdscr attr opts)]))
 
   (define wattr-set
     (case-lambda
@@ -731,21 +737,25 @@
          (ftype-set! int () mem opts)
          (wattr_set win attr 0 mem))]))
 
-  #;(define attr-off
+  (define attr-off
     (lambda (attr)
-      (attr_off attr 0)))
+      (wattr-off stdscr attr)))
 
-  #;(define wattr-off
+  (define wattr-off
     (lambda (win attr)
-      (wattr_off win attr 0)))
+      (auto-ptr ([mem int])
+        (ftype-set! int () mem attr)
+        (wattr_off win 0 attr))))
 
-  #;(define attr-on
+  (define attr-on
     (lambda (attr)
-      (attr_on attr 0)))
+      (wattr-on stdscr attr)))
 
-  #;(define wattr-on
+  (define wattr-on
     (lambda (win attr)
-      (wattr_on win attr 0)))
+      (auto-ptr ([mem int])
+        (ftype-set! int () mem attr)
+        (wattr_on win 0 attr))))
 
   ;; curs_terminfo(3X)
   (define tigetflag
