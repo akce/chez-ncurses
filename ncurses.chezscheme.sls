@@ -691,7 +691,7 @@
   ;; curs_getyx, ncurses implements via macros but we can recreate via curs_legacy.
   (define getyx
     (lambda (w)
-      (values (getcury w) getcurx w)))
+      (values (getcury w) (getcurx w))))
 
   (define getparyx
     (lambda (w)
