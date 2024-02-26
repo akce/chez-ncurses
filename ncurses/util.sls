@@ -1,9 +1,9 @@
 ;; Common ncurses public utility functions.
-;; Written by Jerry 2023.
+;; Written by Jerry 2023-2024.
 ;; SPDX-License-Identifier: Unlicense
 (library (ncurses util)
   (export
-    textui
+    text-user-interface
     get-key-combo
     key-combo-alt?
     key-combo-key
@@ -13,8 +13,8 @@
     (chezscheme)
     (except (ncurses) box meta))
 
-  ;; Safe wrapper for ncurses apps that use unbuffered key presses.
-  (define-syntax textui
+  ;; Safe wrapper for fullscreen ncurses apps.
+  (define-syntax text-user-interface
     (syntax-rules ()
       [(_ body body* ...)
        (dynamic-wind
@@ -32,6 +32,36 @@
            )
          endwin)]))
 
+  (define get-ncint
+    (cond
+      [(foreign-entry? "wget_wch")
+       wget-wch]
+      [(foreign-entry? "wgetch")
+       wgetch]
+      [else
+        ;; This case should never happen.
+        ;; By successfully importing (ncurses), either the widechar enabled, or
+        ;; byte-char libncurses should be loaded.
+        (error 'get-charint "ncurses: neither wget_wch or wgetch found.")]))
+
+  ;; Double negatives do my head in, define such that:
+  ;;   > (blocking? win) => #t
+  ;; is the same as
+  ;;   > (is-nodelay win) => #f
+  ;;
+  ;; is_nodelay() exists only if ncurses is built with NCURSES_OPAQUE.
+  ;; Its not being available is a real possibility and the case for at least one platform.
+  (define blocking?
+    (cond
+      [(foreign-entry? "is_nodelay")
+       (lambda (win)
+         (not (is-nodelay win)))]
+      [else
+        (lambda (win-ignored)
+          ;; Assume the default value of !nodelay and return that.
+          ;; TODO provide a work around, eg. write a wrapper for (nodelay win) that caches state.
+          #t)]))
+
   ;; getch-now: quickly get the next key, or #f if none.
   ;;
   ;; This function temporarily puts `getch` in non-blocking mode and tries to get the next key.
@@ -40,40 +70,53 @@
   ;; This function can help reading ALT key combos as they are sent as KEY_ESCAPE followed by the key.
   ;; A pressed ESCAPE on its own has nothing following and is seen after ESCDELAY milliseconds.
   ;;
-  ;; NOTE: This assumes that nodelay is disabled by the calling app. ie, `getch` is in BLOCKING mode.
+  ;; NOTE: This assumes that nodelay is disabled by the calling app. ie, ncurses is in BLOCKING mode.
   (define getch-now
     (case-lambda
       [()
        (getch-now stdscr)]
       [(win)
-       ;; This function works by temporarily putting wgetch in non-blocking mode via nodelay.
-       (dynamic-wind
-         (lambda ()
-           (nodelay win #t))
-         (lambda ()
-           ;; Return #f if ESCDELAY timeout expires without a key press.
-           ;; Note that our getch wrappers raise an error rather than return ERR.
-           (guard (e [else #f])
-             (key-ref (wgetch win))))
-         (lambda ()
-           (nodelay win #f)))]))
+       ;; This function works by temporarily putting ncurses in non-blocking mode via nodelay.
+       (let ([get-symchar
+               (lambda ()
+                 ;; Return #f if ESCDELAY timeout expires without a key press.
+                 ;; Note that our getch wrappers raise an error rather than return ERR.
+                 (guard (e [else #f])
+                   (key-symchar (get-ncint win))))])
+         (cond
+           [(blocking? win)
+            (dynamic-wind
+              (lambda ()
+                ;; blocking => #f
+                (nodelay win #t))
+              get-symchar
+              (lambda ()
+                ;; blocking => t
+                (nodelay win #f)))]
+           [else
+             (get-symchar)]))]))
 
   (define get-key-combo
-    (lambda ()
-      (define key-a (key-symchar (getch)))
-      (case key-a
-        [(KEY_ESCAPE)
-         (cond
-           [(getch-now)
-            => (lambda (key)
-                 (cons #t key))]
+    (case-lambda
+      [()
+       (get-key-combo stdscr)]
+      [(win)
+       (let ([key-a (key-symchar (get-ncint win))])
+         (case key-a
+           [(KEY_ESCAPE)
+            (cond
+              [(getch-now win)
+               => (lambda (key)
+                    (cons 'ALT key))]
+              [else
+                (cons #f key-a)])]
            [else
-             (cons #f key-a)])]
-        [else
-          (cons #f key-a)])))
+             (cons #f key-a)]))]))
 
-  ;; Convenience accessors for get-key-combo return.
-  (define key-combo-alt? car)
+  ;; Accessors for get-key-combo return.
+  (define key-combo-alt?
+    (lambda (key-combo)
+      (eq? (car key-combo) 'ALT)))
   (define key-combo-key cdr)
 
   (define init-colour-24
@@ -86,7 +129,7 @@
         octet->ncurses
         (split-rrggbb rrggbb))))
 
-  ;; Ncurses colours are between 0 to 1000, whereas our colours are 0 to #xff.
+  ;; Ncurses colours are between 0 to 1000, whereas a lot of apps use 0 to #xff.
   (define octet->ncurses
     (lambda (oct)
       (round (* (/ oct #xff) 1000))))

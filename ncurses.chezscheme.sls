@@ -52,16 +52,9 @@
    getyx getparyx getbegyx getmaxyx
 
    ;; curs_getch(3X) and curs_get_wch(3X)
-   ;; Always export the wide versions as R6RS requires unicode.
-   ;; This may be a bad idea. Revisit at some point..
-   (rename
-     (get-wch getch)
-     (wget-wch wgetch)
-     (mvget-wch mvgetch)
-     (mvwget-wch mvwgetch)
-     (unget-wch ungetch))
+   getch wgetch mvgetch mvwgetch ungetch
    has_key
-   ;;get-wch wget-wch mvget-wch mvwget-wch unget-wch
+   get-wch wget-wch mvget-wch mvwget-wch unget-wch
 
    ;; curs_inopts(3X)
    cbreak nocbreak echo noecho halfdelay intrflush keypad meta nodelay raw noraw
@@ -115,6 +108,10 @@
 
    ;; curs_legacy(3X), these require the NCURSES_OPAQUE definition.
    getattrs getbegx getbegy getcurx getcury getmaxx getmaxy getparx getpary
+
+   ;; curs_opaque(3X), these require the NCURSES_OPAQUE definition.
+   is-cleared is-idcok is-idlok is-immedok is-keypad is-leaveok is-nodelay is-notimeout
+   is-pad is-scrollok is-subwin is-syncok ;; TODO wgetdelay wgetparent wgetscrreg
 
    ;; HACK: setlocale(3) here is linux specific.
    setlocale
@@ -922,6 +919,21 @@
     (lambda (y x to-screen?)
       ;; curs_mouse(3X) writes that mouse_trafo is equivalent to wmouse_trafo with win set to stdscr.
       (wmouse-trafo stdscr y x to-screen?)))
+
+  (c_funcs
+    (is-cleared		((* window)) bool)
+    (is-idcok		((* window)) bool)
+    (is-idlok		((* window)) bool)
+    (is-immedok		((* window)) bool)
+    (is-keypad		((* window)) bool)
+    (is-leaveok		((* window)) bool)
+    (is-nodelay		((* window)) bool)
+    (is-notimeout	((* window)) bool)
+    (is-pad		((* window)) bool)
+    (is-scrollok	((* window)) bool)
+    (is-subwin		((* window)) bool)
+    (is-syncok		((* window)) bool)
+    )
 
    ;; HACK: setlocale here is linux specific.
   (c_funcs

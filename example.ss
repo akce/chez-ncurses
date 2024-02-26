@@ -1,4 +1,4 @@
-#! /usr/bin/env -S chez-scheme --program
+#! /usr/bin/env -S chez-scheme --debug-on-exception --script
 
 ;; Example ncurses app, it:
 ;; - prints the keycode info for pressed keys
@@ -16,7 +16,8 @@
 (import
  (rnrs)
  (only (chezscheme) format ftype-pointer=? logtest)
- (ncurses))
+ (ncurses)
+ (only (ncurses util) get-key-combo key-combo-alt? key-combo-key))
 
 (define event-win #f)
 
@@ -90,12 +91,15 @@
     ;; Write the headers.
     (mvaddch 0 1 ACS_RTEE)
     (with-attr (stdscr A_NORMAL STYLE_LABEL)
-      (mvaddstr 0 2 "Press ALT-q or double click left mouse button to quit"))
+      (mvaddstr 0 2
+        "Press ALT-q or double click left mouse button to quit"))
     (with-attr (stdscr A_NORMAL STYLE_TEXT)
       (addch ACS_LTEE)
       (show-COLSxLINES)
       (show-colour-info)
-      (mvaddstr MOUSE_MASK_ROW 1 (format "mouse mask: requested #x~x actual #x~x old #x~x" MOUSE_EVENT_MASK mouse-actual-mask mouse-old-mask)))
+      (mvaddstr MOUSE_MASK_ROW 1
+        (format "mouse mask: requested #x~x actual #x~x old #x~x"
+          MOUSE_EVENT_MASK mouse-actual-mask mouse-old-mask)))
 
     (let-syntax
       ([draw-column
@@ -149,11 +153,14 @@
 
 (define show-COLSxLINES
   (lambda ()
-    (mvaddstr WIN_INFO_ROW 1 (format "window (cols x lines): ~d x ~d" COLS LINES))))
+    (mvaddstr WIN_INFO_ROW 1
+      (format "window (cols x lines): ~d x ~d" COLS LINES))))
 
 (define show-colour-info
   (lambda ()
-    (mvaddstr COLOUR_INFO_ROW 1 (format "Colours ~d Pairs ~d has-colours? ~a can-change-colour? ~a" COLORS COLOR_PAIRS (has-colors) (can-change-color)))))
+    (mvaddstr COLOUR_INFO_ROW 1
+      (format "Colours ~d Pairs ~d has-colours? ~a can-change-colour? ~a"
+        COLORS COLOR_PAIRS (has-colors) (can-change-color)))))
 
 (define handle-mouse-event
   (lambda (break)
@@ -166,56 +173,32 @@
           [(logtest event-mask MOUSE_EVENT_MASK)
            (werase event-win)
            (mvwaddstr event-win 0 0
-                     (format "mouse pressed: id #x~x row ~d column ~d bstate #x~x"
-                             (mevent-id mevent*) (mevent-y mevent*) (mevent-x mevent*) (mevent-bstate mevent*)))]
+             (format "mouse pressed: id #x~x row ~d column ~d bstate #x~x"
+               (mevent-id mevent*) (mevent-y mevent*) (mevent-x mevent*) (mevent-bstate mevent*)))]
           [else
             (werase event-win)
-            (mvwaddstr event-win 0 0 (format "mouse: unknown event #x~x" (mevent-bstate mevent*)))]
-          )))))
+            (mvwaddstr event-win 0 0
+              (format "mouse: unknown event #x~x"
+                (mevent-bstate mevent*)))])))))
 
-(define show-event-key
-  (lambda (event-type keycode)
+(define show-event-key-combo
+  (lambda (key-combo)
+    (define keycode (key-ncint (key-combo-key key-combo)))
     (werase event-win)
     (with-attr (A_REVERSE STYLE_TEXT)
-               (mvwaddstr event-win 0 0 (format "~a pressed: #o~o #d~d #x~x ~s" event-type keycode keycode keycode (key-symchar keycode))))))
+      (mvwaddstr event-win 0 0
+        (format "~a pressed: #o~o #d~d #x~x ~s"
+          (if (key-combo-alt? key-combo)
+            "alt-key"
+            "key")
+          keycode keycode keycode (key-combo-key key-combo))))))
 
-
-;; getch-now: quickly get the next key, or #f if none.
-;;
-;; This function temporarily puts `getch` in non-blocking mode and tries to get the next key.
-;; The key is returned if available, otherwise #f is returned.
-;;
-;; This function can help reading ALT key combos as they are sent as KEY_ESCAPE followed by the key.
-;; A pressed ESCAPE on its own has nothing following and is seen after ESCDELAY milliseconds.
-;;
-;; NOTE: This assumes that nodelay is disabled by the calling app. ie, `getch` is in BLOCKING mode.
-(define getch-now
-  (case-lambda
-    [()
-     (getch-now stdscr)]
-    [(win)
-     ;; This function works by temporarily putting wgetch in non-blocking mode via nodelay.
-     (dynamic-wind
-       (lambda ()
-         (nodelay win #t))
-       (lambda ()
-         ;; Return #f if ESCDELAY timeout expires without a key press.
-         ;; Note that our getch wrappers raise an error rather than return ERR.
-         (guard (e [else #f])
-           (wgetch win)))
-       (lambda ()
-         (nodelay win #f)))]))
-
-(define-syntax change-colour
+(define-syntax batch
   (syntax-rules ()
-    [(_ (colour r g b) ...)
+    [(_ command (args ...) ...)
      (begin
-       (change-colour colour r g b)
-       ...)]
-    [(_ colour r g b)
-     (let ([rc (init-color colour r g b)])
-       (when (= rc ERR)
-         (error 'init-color (format "Error changing colour: ~s" 'colour) r g b)))]))
+       (command args ...)
+       ...)]))
 
 ;; Running through `dynamic-wind` ensures that `endwin` is called and the screen restored, even on catastrophic failure.
 (dynamic-wind
@@ -228,45 +211,42 @@
     (when (> COLORS 7)
       (set! use-colour? #t)
       (when (can-change-color)
-        (change-colour
+        (batch init-color
           (COLOR_BLUE 682 816 682)
           (COLOR_MAGENTA 761 682 816)
           (COLOR_CYAN 878 686 569)))
-      (init-pair STYLE_TEXT COLOR_BLUE COLOUR_NONE)
-      (init-pair STYLE_LABEL COLOR_MAGENTA COLOUR_NONE)
-      (init-pair STYLE_BORDER COLOR_CYAN COLOUR_NONE))
+      (batch init-pair
+        (STYLE_TEXT COLOR_BLUE COLOUR_NONE)
+        (STYLE_LABEL COLOR_MAGENTA COLOUR_NONE)
+        (STYLE_BORDER COLOR_CYAN COLOUR_NONE)))
     (example-screen-draw-static)
 
     ;; Main event loop.
     (call/cc
       (lambda (break)
-        (let loop ([ch (getch)])
-          (case (key-symchar ch)
-            [(KEY_ESCAPE)
-             (cond
-               [(getch-now)
-                => (lambda (key)
-                     (case (key-symchar key)
-                       [(#\q)
-                        ;; ALT-q exits the loop.
-                        (break)]
-                       [else
-                         (show-event-key "alt-key" key)]))]
+        (let loop ([key-combo (get-key-combo)])
+          (cond
+            [(key-combo-alt? key-combo)
+             (case (key-combo-key key-combo)
+               [(#\q)
+                ;; ALT-q exits the loop.
+                (break)]
                [else
-                 ;; Escape pressed.
-                 (show-event-key "key" ch)])]
-            [(KEY_RESIZE)	; window size has changed.
-             (erase)
-             (example-screen-draw-static)]
-            [(KEY_MOUSE)
-             ;; Give handle-mouse-event `break` as it may decide to end the event loop too.
-             (handle-mouse-event break)]
+                 (show-event-key-combo key-combo)])]
             [else
-              (show-event-key "key" ch)])
+              (case (key-combo-key key-combo)
+                [(KEY_RESIZE)	; window size has changed.
+                 (erase)
+                 (example-screen-draw-static)]
+                [(KEY_MOUSE)
+                 ;; Give handle-mouse-event `break` as it may decide to end the event loop too.
+                 (handle-mouse-event break)]
+                [else
+                  (show-event-key-combo key-combo)])])
           (refresh)
           (wrefresh event-win)
-          (loop (getch))))))
+          (loop (get-key-combo))))))
 
   endwin)
 
-;; vim:lispwords+=with-attr
+;; vim:lispwords+=batch,format,mvaddstr,mvwaddstr,with-attr
