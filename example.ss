@@ -72,7 +72,10 @@
          (lambda ()
            (cond
              [use-colour?
-               (wattr-set win attr pair)]
+               (wattr-set win attr pair)
+               (let-values ([(newa newc) (wattr-get win)])
+                 (assert (fx=? newa attr))
+                 (assert (fx=? newc pair)))]
              [else
                ;; Call without setting colour.
                ;; This allows for setting attributes (like A_REVERSE) only.
@@ -85,15 +88,15 @@
 ;; Draw the static (non-changing) screen elements.
 (define example-screen-draw-static
   (lambda ()
-    (with-attr (stdscr A_NORMAL STYLE_BORDER)
+    (with-attr (A_NORMAL STYLE_BORDER)
       (box stdscr ACS_VLINE ACS_HLINE))
 
     ;; Write the headers.
     (mvaddch 0 1 ACS_RTEE)
-    (with-attr (stdscr A_NORMAL STYLE_LABEL)
+    (with-attr (A_BOLD STYLE_LABEL)
       (mvaddstr 0 2
         "Press ALT-q or double click left mouse button to quit"))
-    (with-attr (stdscr A_NORMAL STYLE_TEXT)
+    (with-attr (A_NORMAL STYLE_TEXT)
       (addch ACS_LTEE)
       (show-COLSxLINES)
       (show-colour-info)
@@ -185,7 +188,7 @@
   (lambda (key-combo)
     (define keycode (key-ncint (key-combo-key key-combo)))
     (werase event-win)
-    (with-attr (A_REVERSE STYLE_TEXT)
+    (with-attr (event-win A_REVERSE STYLE_TEXT)
       (mvwaddstr event-win 0 0
         (format "~a pressed: #o~o #d~d #x~x ~s"
           (if (key-combo-alt? key-combo)
@@ -212,11 +215,11 @@
       (set! use-colour? #t)
       (when (can-change-color)
         (batch init-color
-          (COLOR_BLUE 682 816 682)
+          (COLOR_GREEN 682 816 682)
           (COLOR_MAGENTA 761 682 816)
           (COLOR_CYAN 878 686 569)))
       (batch init-pair
-        (STYLE_TEXT COLOR_BLUE COLOUR_NONE)
+        (STYLE_TEXT COLOR_GREEN COLOUR_NONE)
         (STYLE_LABEL COLOR_MAGENTA COLOUR_NONE)
         (STYLE_BORDER COLOR_CYAN COLOUR_NONE)))
     (example-screen-draw-static)
