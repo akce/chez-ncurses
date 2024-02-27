@@ -68,7 +68,12 @@
    ;; These are legacy setters (as per the manpage), prefer the hyphenated versions..
    attroff wattroff attron wattron attrset wattrset
 
-   chgat wchgat mvchgat mvwchgat color-set wcolor-set standend wstandend standout wstandout
+   (rename
+     (chgat* chgat)
+     (wchgat* wchgat)
+     (mvchgat* mvchgat)
+     (mvwchgat* mvwchgat))
+   color-set wcolor-set standend wstandend standout wstandout
    A_NORMAL A_STANDOUT A_UNDERLINE A_REVERSE A_BLINK A_DIM A_BOLD A_ALTCHARSET
    A_INVIS A_PROTECT A_HORIZONTAL A_LEFT A_LOW A_RIGHT A_TOP A_VERTICAL A_ITALIC
 
@@ -593,10 +598,10 @@
    (attrset (int) errok)
    (wattrset ((* window) int) errok)
 
-   (chgat (int attr_t short void*) errok)
-   (wchgat ((* window) int attr_t short void*) errok)
-   (mvchgat (int int int attr_t short void*) errok)
-   (mvwchgat ((* window) int int int attr_t short void*) errok)
+   #;(chgat (int attr_t short void*) errok)
+   (wchgat ((* window) int attr_t short (* int)) errok)
+   #;(mvchgat (int int int attr_t short void*) errok)
+   (mvwchgat ((* window) int int int attr_t short (* int)) errok)
    (color-set (short void*) errok)
    (wcolor-set ((* window) short void*) errok)
    (standend () errok)
@@ -756,6 +761,26 @@
     (lambda (win attr)
       ;; opts are unused.
       (wattr_on win attr 0)))
+
+  (define chgat*
+    (lambda (n attr opts)
+      (wchgat* stdscr n attr opts)))
+
+  (define mvchgat*
+    (lambda (y x n attr opts)
+      (mvwchgat* stdscr y x n attr opts)))
+
+  (define wchgat*
+    (lambda (win n attr opts)
+      (auto-ptr ([mem int])
+        (ftype-set! int () mem opts)
+        (wchgat win n attr 0 mem))))
+
+  (define mvwchgat*
+    (lambda (win y x n attr opts)
+      (auto-ptr ([mem int])
+        (ftype-set! int () mem opts)
+        (mvwchgat win y x n attr 0 mem))))
 
   ;; curs_terminfo(3X)
   (define tigetflag

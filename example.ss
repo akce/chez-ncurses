@@ -5,6 +5,7 @@
 ;; - shows the window dimensions
 ;; - displays the ACS characters
 ;; - responds to some mouse button clicks
+;; - draw label colour at left mouse click position (except inside event info window)
 ;; - use of separate newwin for event info.
 
 ;; chez-ncurses is only a thin wrapper around the ncurses library so it should be possible
@@ -177,7 +178,11 @@
            (werase event-win)
            (mvwaddstr event-win 0 0
              (format "mouse pressed: id #x~x row ~d column ~d bstate #x~x"
-               (mevent-id mevent*) (mevent-y mevent*) (mevent-x mevent*) (mevent-bstate mevent*)))]
+               (mevent-id mevent*) (mevent-y mevent*) (mevent-x mevent*) (mevent-bstate mevent*)))
+           ;; Draw a block at the x/y position.
+           ;; This is a simple version that only displays in the main window (stdscr),
+           ;; and not in the event info window.
+           (mvchgat (mevent-y mevent*) (mevent-x mevent*) 1 A_REVERSE STYLE_LABEL)]
           [else
             (werase event-win)
             (mvwaddstr event-win 0 0
