@@ -26,48 +26,37 @@ INSTALL = /usr/bin/install
 
 ## Should be no need to edit anything below here.
 
-# This makefile assumes a library layout as follows:
-# TOP
-# PROJDIR/
-#   FFI
-#   SUBSRC ..
-# BUILDDIR/
-#   FFIOBJ ..
-#   BSUBOBJ ..
-#   BSUBWPO ..
-#   BTOPOBJ
-#   BTOPWPO
-#
-# Where TOP is the high level library definition that imports all sub libs within PROJDIR.
-# FFI (if needed) is a C compilable lib.
-# The rest are scheme libraries.
-# Scheme compilation is handled by building TOP and letting Chez scheme automatically manage dependants.
+# Scheme compilation is handled by building TOPSRC (for local builds) or ITOPSRC (for
+# the install directory) and letting Chez scheme automatically manage dependents.
 
-PROJDIR = ncurses
+PROJ = ncurses
+
+# Top level (ie, root) library sources.
+# These are the scheme libs that are included from client apps.
+TOPSRC = $(PROJ).chezscheme.sls $(addprefix $(PROJ)/,panel.chezscheme.sls util.sls)
 
 # Source files, shared objects, and whole program optimisations for the library subdirectory.
-SUBSRC = $(addprefix $(PROJDIR)/,common.chezscheme.sls panel.chezscheme.sls util.sls)
+SUBSRC = $(addprefix $(PROJ)/,common.chezscheme.sls)
+
+# Setup shared object and whole program optimisation extensions.
+TOPOBJ = $(TOPSRC:.sls=.so)
+TOPWPO = $(TOPSRC:.sls=.wpo)
 SUBOBJ = $(SUBSRC:.sls=.so)
 SUBWPO = $(SUBSRC:.sls=.wpo)
 
-# Top level (ie, root) library source, .. etc.
-TOPSRC = ncurses.chezscheme.sls
-TOPOBJ = $(TOPSRC:.sls=.so)
-TOPWPO = $(TOPSRC:.sls=.wpo)
-
-# Built versions of scheme code above.
-BSUBOBJ = $(addprefix $(BUILDDIR)/,$(SUBOBJ))
-BSUBWPO = $(BUILDDIR)/$(PROJDIR)/panel.chezscheme.wpo
+# Local build versions.
 BTOPOBJ = $(addprefix $(BUILDDIR)/,$(TOPOBJ))
 BTOPWPO = $(addprefix $(BUILDDIR)/,$(TOPWPO))
+BSUBOBJ = $(addprefix $(BUILDDIR)/,$(SUBOBJ))
+BSUBWPO = $(addprefix $(BUILDDIR)/,$(SUBWPO))
 
 # Installed versions of all the above.
-ISUBSRC = $(addprefix $(LIBDIR)/,$(SUBSRC))
-ISUBOBJ = $(addprefix $(LIBDIR)/,$(SUBOBJ))
-ISUBWPO = $(addprefix $(LIBDIR)/,$(SUBWPO))
 ITOPSRC = $(addprefix $(LIBDIR)/,$(TOPSRC))
 ITOPOBJ = $(addprefix $(LIBDIR)/,$(TOPOBJ))
 ITOPWPO = $(addprefix $(LIBDIR)/,$(TOPWPO))
+ISUBSRC = $(addprefix $(LIBDIR)/,$(SUBSRC))
+ISUBOBJ = $(addprefix $(LIBDIR)/,$(SUBOBJ))
+ISUBWPO = $(addprefix $(LIBDIR)/,$(SUBWPO))
 
 # Tell GNU make about the files generated as a "side-effect" of building TOPWPO,
 # otherwise make will raise an error that it doesn't know how to build these.
@@ -78,14 +67,17 @@ all: build
 
 # In-place local development test compile. This is built in a separate
 # directory BUILDDIR so as to keep build files out of the way.
-$(BUILDDIR)/$(PROJDIR)/panel.chezscheme.wpo: $(PROJDIR)/panel.chezscheme.sls
+# $(basename $*) extracts the useful library name.
+# eg, (import (proj $(basename proj/libname.chezscheme.sls))) => (import (proj libname))
+
+$(BUILDDIR)/$(PROJ)/%.wpo: $(PROJ)/%.sls
 	echo	\
 		"(reset-handler abort)"			\
 		"(compile-imported-libraries #t)"	\
 		"(generate-wpo-files #t)"		\
 		"(library-directories"			\
 		'  (list (cons "." "$(BUILDDIR)")))'	\
-		'(import (ncurses panel))'		\
+		'(import ($(PROJ) $(basename $*)))'	\
 		| $(SCHEME) $(SFLAGS)
 
 $(BUILDDIR)/%.wpo: %.sls
@@ -95,40 +87,53 @@ $(BUILDDIR)/%.wpo: %.sls
 		"(generate-wpo-files #t)"		\
 		"(library-directories"			\
 		'  (list (cons "." "$(BUILDDIR)")))'	\
-		'(import ($(PROJDIR)))'			\
+		'(import ($(basename $*)))'		\
 		| $(SCHEME) $(SFLAGS)
 
 # Installed compile. Source files must be copied to destination LIBDIR first
 # (via make rules) where this recipe compiles in the remote location.
-# This rule is available but not really necessary given that apps should do
-# their own whole program compilation and optimisations..
-# ie, make install-src should be sufficient.
-%.wpo: %.sls
+
+$(LIBDIR)/$(PROJ)/%.wpo: $(PROJ)/%.sls
 	echo	\
 		"(reset-handler abort)"			\
 		"(compile-imported-libraries #t)"	\
 		"(generate-wpo-files #t)"		\
-		'(library-directories "$(LIBDIR)")'	\
-		'(import ($(PROJDIR)))'			\
+		"(library-directories"			\
+		'  (list (cons "." "$(LIBDIR)")))'	\
+		'(import ($(PROJ) $(basename $*)))'	\
+		| $(SCHEME) $(SFLAGS)
+
+$(LIBDIR)/%.wpo: %.sls
+	echo	\
+		"(reset-handler abort)"			\
+		"(compile-imported-libraries #t)"	\
+		"(generate-wpo-files #t)"		\
+		"(library-directories"			\
+		'  (list (cons "." "$(LIBDIR)")))'	\
+		'(import ($(basename $*)))'		\
 		| $(SCHEME) $(SFLAGS)
 
 # Creating the dest dir first works for both BSD and GNU install.
+
 $(LIBDIR)/%: %
 	@$(INSTALL) -d "$(dir $@)"
 	$(INSTALL) -m u=rw,go=r,a-s -p "$<" "$@"
 
-build: $(BTOPWPO) $(BSUBWPO)
+build: $(BTOPWPO)
 
-install: install-src
+install: install-build
 
-install-so: install-src $(ITOPWPO)
+install-build: install-src $(ITOPWPO)
 
 install-src: $(ITOPSRC) $(ISUBSRC)
 
 clean:
-	$(RM) -r $(BUILDDIR)
+	$(RM) $(BTOPOBJ) $(BTOPWPO) $(BSUBOBJ) $(BSUBWPO)
+	$(RM) -d $(BUILDDIR)/$(PROJ)
+	$(RM) -d $(BUILDDIR)
 
 clean-install:
-	$(RM) $(ITOPOBJ) $(ITOPWPO) $(ITOPSRC)
+	$(RM) $(ITOPOBJ) $(ITOPWPO) $(ITOPSRC) $(ISUBSRC) $(ISUBOBJ) $(ISUBWPO)
+	$(RM) -d $(LIBDIR)/$(PROJ)
 
 clean-all: clean clean-install
