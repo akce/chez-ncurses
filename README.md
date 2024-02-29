@@ -24,6 +24,8 @@ Window attribute functions now use extended `int` instead of `short`.
 
 Boolean type handling has been fixed.
 
+`setlocale` has been moved to `(ncurses util)` as it's not a part of [ncurses], and all **LC_** defines except `LC_ALL` have been removed.
+
 ## Compiling and installing
 
 The recommended install method is to use [GNU make](https://www.gnu.org/software/make/).
@@ -145,7 +147,13 @@ Accessors for mevent* members are provided: `mevent-id`, `mevent-y`, `mevent-x`,
 
 ### setlocale
 
-As a convenience, **chez-ncurses** includes a binding for [setlocale(3)](https://www.man7.org/linux/man-pages/man3/setlocale.3.html) as it's near mandatory to call this before initialising [ncurses].
+```scheme
+(import
+  (only (ncurses util) setlocale LC_ALL))
+(setlocale LC_ALL "")
+```
+
+As a convenience, **chez-ncurses** includes a binding for [setlocale(3)](https://www.man7.org/linux/man-pages/man3/setlocale.3.html) as it's near [mandatory](https://invisible-island.net/ncurses/man/ncurses.3x.html) to call this before initialising [ncurses].
 
 Ideally, this belongs in a separate POSIX style library.
 

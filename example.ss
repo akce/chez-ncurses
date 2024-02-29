@@ -18,7 +18,7 @@
  (rnrs)
  (only (chezscheme) format ftype-pointer=? logtest)
  (ncurses)
- (only (ncurses util) get-key-combo key-combo-alt? key-combo-key))
+ (only (ncurses util) get-key-combo key-combo-alt? key-combo-key setlocale LC_ALL))
 
 (define event-win #f)
 
