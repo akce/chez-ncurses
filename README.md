@@ -24,7 +24,7 @@ Window attribute functions now use extended `int` instead of `short`.
 
 Boolean type handling has been fixed.
 
-`setlocale` has been moved to `(ncurses util)` as it's not a part of [ncurses], and all **LC_** defines except `LC_ALL` have been removed.
+`setlocale` has been moved to `(ncurses posix)` as it's not a part of [ncurses], and all **LC_** defines except `LC_ALL` have been removed.
 
 ## Compiling and installing
 
@@ -149,13 +149,13 @@ Accessors for mevent* members are provided: `mevent-id`, `mevent-y`, `mevent-x`,
 
 ```scheme
 (import
-  (only (ncurses util) setlocale LC_ALL))
+  (ncurses posix))
 (setlocale LC_ALL "")
 ```
 
 As a convenience, **chez-ncurses** includes a binding for [setlocale(3)](https://www.man7.org/linux/man-pages/man3/setlocale.3.html) as it's near [mandatory](https://invisible-island.net/ncurses/man/ncurses.3x.html) to call this before initialising [ncurses].
 
-Ideally, this belongs in a separate POSIX style library.
+Ideally, this belongs in a separate POSIX or Operating System library.
 
 ## How To Use Panels
 
@@ -167,18 +167,20 @@ These functions are implemented except for `ground-panel` and `ceiling-panel` (d
 ## How To Use Utils
 
 ```scheme
-(import (ncurses utils))
+(import (ncurses util))
 ```
 This scheme library contains functions not part of [ncurses] proper, but that i've found useful in writing my own programs.
 
-eg, an [ncurses] app to clear the screen and wait for a keypress could be written as:
+eg, a minimal [ncurses] app to clear the screen and wait for a keypress could be written as:
 ```scheme
 (import
-  (prefix (ncurses) nc:)
-  (prefix (ncurses util) u:))
-(u:text-user-interface
-  (nc:clear)
-  (u:key-combo-read))
+  (only (ncurses) clear)
+  (only (ncurses posix) setlocale LC_ALL)
+  (only (ncurses util) key-combo-read text-user-interface))
+(setlocale LC_ALL "")
+(text-user-interface
+  (clear)
+  (key-combo-read))
 ```
 
 ## TODO

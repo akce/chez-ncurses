@@ -33,7 +33,7 @@ PROJ = ncurses
 
 # Top level (ie, root) library sources.
 # These are the scheme libs that are included from client apps.
-TOPSRC = $(PROJ).chezscheme.sls $(addprefix $(PROJ)/,panel.chezscheme.sls util.sls)
+TOPSRC = $(PROJ).chezscheme.sls $(addprefix $(PROJ)/,panel.chezscheme.sls posix.chezscheme.sls util.sls)
 
 # Source files, shared objects, and whole program optimisations for the library subdirectory.
 SUBSRC = $(addprefix $(PROJ)/,common.chezscheme.sls)

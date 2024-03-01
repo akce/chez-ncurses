@@ -8,34 +8,18 @@
     key-combo-alt?
     key-combo-key
     init-colour-24
-
-    ;; HACK: setlocale(3) should be in a posix/os lib.
-    setlocale
-    LC_ALL
     )
   (import
     (chezscheme)
     (except (ncurses) box meta)
-    (only (ncurses common) c_funcs enum)
     )
-
-  ;; HACK: setlocale(3) should be in a posix/os lib.
-  (c_funcs
-    ;; char *setlocale(int category, const char *locale);
-    (setlocale (int string) string)
-    )
-    (enum
-      (LC_ALL		 6)
-      )
 
   ;; Safe wrapper for fullscreen ncurses apps.
   (define-syntax text-user-interface
     (syntax-rules ()
       [(_ body body* ...)
        (dynamic-wind
-         (lambda ()
-           (setlocale LC_ALL "")
-           (initscr))
+         initscr
          (lambda ()
            (keypad stdscr #t)
            (noecho)
