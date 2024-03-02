@@ -47,6 +47,7 @@ The default install target will install source files, shared object files, and [
 [ncurses] wide character version.
 
 These bindings will try and load [ncurses] in this order:
+
  * the shared library linked to the running [Chez Scheme] binary
  * libncursesw.so.6
  * libncurses.so.6
