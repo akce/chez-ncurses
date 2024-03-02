@@ -34,7 +34,7 @@ To compile and install the library shared-object to LIBDIR:
 
     $ make install
 
-Override LIBDIR to change install location (default is ~/lib/csv&lt;CHEZ-SCHEME-VERSION&gt;). eg,
+Override LIBDIR to change install location (default is ~/lib/csv\<CHEZ-SCHEME-VERSION\>). eg,
 
     $ make LIBDIR=/some/other/libdir install
 
@@ -47,9 +47,9 @@ The default install target will install source files, shared object files, and [
 [ncurses] wide character version.
 
 These bindings will try and load [ncurses] in this order:
-- the shared library linked to the running [Chez Scheme] binary
-- libncursesw.so.6
-- libncurses.so.6
+   - the shared library linked to the running [Chez Scheme] binary
+   - libncursesw.so.6
+   - libncurses.so.6
 
 [ncurses] is an optional dependancy of [Chez scheme] so chances are good that it's already installed on your system. If not, you'll need to install manually.
 
@@ -68,7 +68,7 @@ eg,
   (rename (ncurses) (box nc:box) (meta nc:meta)))
 ```
 
-Read the [ncurses] [manpages](https://invisible-island.net/ncurses/man/ncurses.3x.html) and other [guides](https://invisible-island.net/ncurses/ncurses.faq.html#additional_reading) to learn how to use [ncurses].
+Read the ncurses [manpages](https://invisible-island.net/ncurses/man/ncurses.3x.html) and other [guides](https://invisible-island.net/ncurses/ncurses.faq.html#additional_reading) to learn how to use [ncurses].
 
 Study the included [example](example.ss) program.
 
@@ -80,7 +80,10 @@ A rough guide follows.
 
 C Function names that contain an underscore are converted to lisp-case/kebab-case.
 
-eg, start_color() -> (start-color)
+eg,
+```
+start_color() -> (start-color)
+```
 
 [ncurses] constants retain their CAPITALISED_UNDERSCORE format because i think it's easier to keep the SHIFT key held down while typing these in.
 
